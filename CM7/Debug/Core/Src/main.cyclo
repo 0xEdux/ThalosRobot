@@ -10,7 +10,7 @@
 ../Core/Src/main.c:646:6:HAL_UART_RxCpltCallback	2
 ../Core/Src/main.c:662:6:StartMotionTask	2
 ../Core/Src/main.c:694:6:StartHeartbeathTask	1
-../Core/Src/main.c:713:6:StartProcessTrackingTask	21
-../Core/Src/main.c:798:6:StartTelemetryTask	10
-../Core/Src/main.c:845:6:HAL_TIM_PeriodElapsedCallback	2
-../Core/Src/main.c:863:6:Error_Handler	1
+../Core/Src/main.c:714:6:StartProcessTrackingTask	21
+../Core/Src/main.c:799:6:StartTelemetryTask	10
+../Core/Src/main.c:846:6:HAL_TIM_PeriodElapsedCallback	2
+../Core/Src/main.c:864:6:Error_Handler	1

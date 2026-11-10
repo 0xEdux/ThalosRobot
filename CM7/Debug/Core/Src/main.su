@@ -10,7 +10,7 @@
 ../Core/Src/main.c:646:6:HAL_UART_RxCpltCallback	16	static
 ../Core/Src/main.c:662:6:StartMotionTask	24	static
 ../Core/Src/main.c:694:6:StartHeartbeathTask	16	static
-../Core/Src/main.c:713:6:StartProcessTrackingTask	112	static
-../Core/Src/main.c:798:6:StartTelemetryTask	248	static
-../Core/Src/main.c:845:6:HAL_TIM_PeriodElapsedCallback	16	static
-../Core/Src/main.c:863:6:Error_Handler	4	static,ignoring_inline_asm
+../Core/Src/main.c:714:6:StartProcessTrackingTask	112	static
+../Core/Src/main.c:799:6:StartTelemetryTask	248	static
+../Core/Src/main.c:846:6:HAL_TIM_PeriodElapsedCallback	16	static
+../Core/Src/main.c:864:6:Error_Handler	4	static,ignoring_inline_asm

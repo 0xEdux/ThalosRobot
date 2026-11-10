@@ -699,6 +699,7 @@ void StartHeartbeathTask(void *argument)
   {
 	  HAL_GPIO_TogglePin(LD1_GPIO_Port, LD1_Pin);
 	  osDelay(T_HEARTBEAT_MS);
+    UART_Print("Heartbeat!!\r\n");
   }
   /* USER CODE END StartHeartbeathTask */
 }
