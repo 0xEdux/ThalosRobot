@@ -1,5 +1,5 @@
 Middlewares/Third_Party/FreeRTOS/event_groups.o: \
- C:/Users/juanb/OneDrive/Escritorio/ThalosRobot/Middlewares/Third_Party/FreeRTOS/Source/event_groups.c \
+ /Users/edub/Desktop/escuela/quinto-sem/Embebidos/ThalosRobot/Middlewares/Third_Party/FreeRTOS/Source/event_groups.c \
  ../../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h \
  ../Core/Inc/FreeRTOSConfig.h \
  ../../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h \
