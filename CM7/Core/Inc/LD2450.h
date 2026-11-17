@@ -53,7 +53,10 @@ int16_t LD2450_Decode(uint16_t raw);
 
 void LD2450_Feed(LD2450_Handle_t *radar, uint8_t value );
 void LD2450_Process(LD2450_Handle_t *radar);
+
 HAL_StatusTypeDef LD2450_Init(LD2450_Handle_t *radar, UART_HandleTypeDef *huart, osMessageQueueId_t trackingQueueHandle, osSemaphoreId_t rxSemHandle);
+
+HAL_StatusTypeDef LD2450_StartProcessing(LD2450_Handle_t *radar)
 
 void LD2450_RxEventCb(LD2450_Handle_t *radar, UART_HandleTypeDef *huart,  uint16_t size);
 void LD2450_ErrorCb(LD2450_Handle_t *radar, UART_HandleTypeDef *huart);
