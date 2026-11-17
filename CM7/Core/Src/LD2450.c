@@ -73,7 +73,7 @@ void LD2450_Feed(LD2450_Handle_t *radar, uint8_t value) {
 }
 
 void LD2450_Process(LD2450_Handle_t *radar) {
-    osSemaphoreAcquire(handle->rxSemHandle, osWaitForever);
+    osSemaphoreAcquire(radar->rxSemHandle, osWaitForever);
 
     if(radar->error) {
       radar->error = 0;
@@ -94,7 +94,7 @@ void LD2450_Process(LD2450_Handle_t *radar) {
       radar->tail = (radar->tail + 1) % LD2450_DMA_BUF_SIZE;
 
       // Verify the data frame
-      LD2450_Feed(value, radar);
+      LD2450_Feed(radar, value);
     }
 
 }

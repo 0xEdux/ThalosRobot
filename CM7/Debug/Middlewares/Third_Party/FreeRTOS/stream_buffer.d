@@ -1,5 +1,5 @@
 Middlewares/Third_Party/FreeRTOS/stream_buffer.o: \
- /Users/edub/Desktop/escuela/quinto-sem/Embebidos/ThalosRobot/Middlewares/Third_Party/FreeRTOS/Source/stream_buffer.c \
+ C:/Users/juanb/OneDrive/Escritorio/ThalosRobot/Middlewares/Third_Party/FreeRTOS/Source/stream_buffer.c \
  ../../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h \
  ../Core/Inc/FreeRTOSConfig.h \
  ../../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h \
