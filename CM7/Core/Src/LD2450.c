@@ -130,6 +130,10 @@ HAL_StatusTypeDef LD2450_Init(LD2450_Handle_t *radar, UART_HandleTypeDef *huart,
     return HAL_OK;
 }
 
+HAL_StatusTypeDef LD2450_StartProcessing(LD2450_Handle_t *radar) {
+  return HAL_UARTEx_ReceiveToIdle_DMA(radar->huart, radar->dmaBuf, LD2450_DMA_BUF_SIZE);
+}
+
 void LD2450_RxEventCb(LD2450_Handle_t *radar, UART_HandleTypeDef *huart,  uint16_t size) {
     if(huart == radar->huart) {
         radar->head = size % LD2450_DMA_BUF_SIZE;
