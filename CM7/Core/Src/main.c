@@ -50,7 +50,13 @@ typedef struct { LDTarget_t t[3]; } LDFrame_t;
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-#define T_HEARTBEAT_MS      250U     // Cambio de estado del LED verde (Task Heartbeat)
+#define T_HEARTBEAT_MS      250U      // Cambio de estado del LED verde (Task Heartbeat)
+#define LD_DMA_BUF_SIZE 128U       // 4 tramas del LD2450
+
+__attribute__((aligned(32))) static uint8_t ld_dma_buf[LD_DMA_BUF_SIZE];
+static volatile uint16_t ld_head = 0;
+static volatile uint16_t ld_tail = 0;
+static volatile uint8_t ld_error = 0;
 
 /* DUAL_CORE_BOOT_SYNC_SEQUENCE: Define for dual core boot synchronization    */
 /*                             demonstration code based on hardware semaphore */
@@ -77,6 +83,7 @@ TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
+DMA_HandleTypeDef hdma_usart2_rx;
 
 /* Definitions for motionTask */
 osThreadId_t motionTaskHandle;
@@ -103,13 +110,8 @@ const osThreadAttr_t processTracking_attributes = {
 osThreadId_t telemetryTaskHandle;
 const osThreadAttr_t telemetryTask_attributes = {
   .name = "telemetryTask",
-  .stack_size = 128 * 4,
+  .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityLow,
-};
-/* Definitions for trackingUARTQueue */
-osMessageQueueId_t trackingUARTQueueHandle;
-const osMessageQueueAttr_t trackingUARTQueue_attributes = {
-  .name = "trackingUARTQueue"
 };
 /* Definitions for trackingQueue */
 osMessageQueueId_t trackingQueueHandle;
@@ -121,15 +123,20 @@ osMutexId_t telemetryMutexHandle;
 const osMutexAttr_t telemetryMutex_attributes = {
   .name = "telemetryMutex"
 };
+/* Definitions for ldRxSem */
+osSemaphoreId_t ldRxSemHandle;
+const osSemaphoreAttr_t ldRxSem_attributes = {
+  .name = "ldRxSem"
+};
 /* USER CODE BEGIN PV */
 
-uint8_t UART2_rxBuffer;
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_USART2_UART_Init(void);
@@ -179,6 +186,64 @@ void set_motor_dir(RobotMotors_t motor, MotorDirections_t dir) {
 int16_t ld_decode(uint16_t raw) {
   int16_t mag = raw & 0x7FFF;
   return (raw & 0x8000) ? mag : -mag;
+}
+
+void ld_feed(uint8_t value, LDStates_t *state, uint8_t *cnt,
+            uint8_t *frame_data, LDFrame_t *targets) {
+
+  switch (*state) {
+      case LD_IDLE:
+        if(*cnt == 0 && value == 0xAA) (*cnt)++;
+        else if (*cnt == 1 && value == 0xFF) (*cnt)++;
+        else if (*cnt == 2 && value == 0x03) (*cnt)++;
+        else if (*cnt == 3 && value == 0x00) {
+          *state = LD_DATA;
+          *cnt = 0;
+        }
+        else if(value == 0xAA) *cnt = 1;
+        else *cnt = 0;
+
+        break;
+
+      case LD_DATA:
+        frame_data[(*cnt)++] = value;
+        if (*cnt == 24) {
+          *cnt = 0;
+          *state = LD_TAIL;
+        }
+
+        break;
+
+      case LD_TAIL:
+        if(*cnt == 0 && value == 0x55) (*cnt)++;
+        else if(*cnt == 1 && value == 0xCC) {
+          // Frame complete
+          for (uint8_t i = 0; i < 3; i++) {
+            uint8_t *p = &frame_data[i * 8];
+            targets->t[i].x = ld_decode(p[1] << 8 | p[0]);
+            targets->t[i].y = ld_decode(p[3] << 8 | p[2]);
+            targets->t[i].speed = ld_decode(p[5] << 8 | p[4]);
+            targets->t[i].res =  p[7] << 8 | p[6];
+          }
+
+        if (osMessageQueuePut(trackingQueueHandle, targets, 0, 0) == osErrorResource) {
+          LDFrame_t old;
+          osMessageQueueGet(trackingQueueHandle, &old, NULL, 0);
+          osMessageQueuePut(trackingQueueHandle, targets, 0, 0);
+        }
+
+          *state = LD_IDLE;
+          *cnt = 0;
+        } else {
+          *state = LD_IDLE;
+          *cnt = 0;
+        }
+
+        break;
+        
+      default:
+        break;
+    }            
 }
 
 void UART_Print(const char *msg){
@@ -258,12 +323,11 @@ Error_Handler();
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART3_UART_Init();
   MX_TIM2_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-
-  HAL_UART_Receive_IT(&huart2, &UART2_rxBuffer, 1);
 
   /* USER CODE END 2 */
 
@@ -278,6 +342,10 @@ Error_Handler();
 
   /* USER CODE END RTOS_MUTEX */
 
+  /* Create the semaphores(s) */
+  /* creation of ldRxSem */
+  ldRxSemHandle = osSemaphoreNew(1, 0, &ldRxSem_attributes);
+
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
@@ -287,9 +355,6 @@ Error_Handler();
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the queue(s) */
-  /* creation of trackingUARTQueue */
-  trackingUARTQueueHandle = osMessageQueueNew (100, sizeof(uint8_t), &trackingUARTQueue_attributes);
-
   /* creation of trackingQueue */
   trackingQueueHandle = osMessageQueueNew (3, sizeof(LDFrame_t), &trackingQueue_attributes);
 
@@ -544,6 +609,22 @@ static void MX_USART3_UART_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -643,11 +724,20 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-	if(huart->Instance == USART2) {
-    osMessageQueuePut(trackingUARTQueueHandle, &UART2_rxBuffer, 0, 0);
-		HAL_UART_Receive_IT(&huart2, &UART2_rxBuffer, 1);
-	}
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
+  if(huart->Instance == USART2) {
+    ld_head = Size % LD_DMA_BUF_SIZE;
+    osSemaphoreRelease(ldRxSemHandle);
+  }
+}
+
+// overrun ó framing: reload
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
+  if(huart->Instance == USART2) {
+    ld_error = 1;
+    osSemaphoreRelease(ldRxSemHandle);
+  }
 }
 
 /* USER CODE END 4 */
@@ -717,74 +807,39 @@ void StartProcessTrackingTask(void *argument)
   /* Infinite loop */
   LDStates_t state = LD_IDLE;
   uint8_t byteCounter = 0;
-
   uint8_t frame_data[24] = {};
-
   LDFrame_t targets;
 
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart2, ld_dma_buf, LD_DMA_BUF_SIZE);
   for(;;)
   {
-    uint8_t value;
-    osMessageQueueGet(trackingUARTQueueHandle, &value, NULL, osWaitForever);
+    osSemaphoreAcquire(ldRxSemHandle, osWaitForever);
 
-    // Verify the data frame
+    if(ld_error) {
+      ld_error = 0;
+      HAL_UART_AbortReceive(&huart2);
+      HAL_UARTEx_ReceiveToIdle_DMA(&huart2, ld_dma_buf, LD_DMA_BUF_SIZE);
+      ld_head = 0;
+      ld_tail = 0;
+      state = LD_IDLE;
+      byteCounter = 0;
 
-    switch (state) {
-      case LD_IDLE:
-        if(byteCounter == 0 && value == 0xAA) byteCounter++;
-        else if (byteCounter == 1 && value == 0xFF) byteCounter++;
-        else if (byteCounter == 2 && value == 0x03) byteCounter++;
-        else if (byteCounter == 3 && value == 0x00) {
-          state = LD_DATA;
-          byteCounter = 0;
-        }
-        else if(value == 0xAA) byteCounter = 1;
-        else byteCounter = 0;
-
-        break;
-
-      case LD_DATA:
-        frame_data[byteCounter++] = value;
-        if (byteCounter == 24) {
-          byteCounter = 0;
-          state = LD_TAIL;
-        }
-
-        break;
-
-      case LD_TAIL:
-        if(byteCounter == 0 && value == 0x55) byteCounter++;
-        else if(byteCounter == 1 && value == 0xCC) {
-          // Frame complete
-          for (uint8_t i = 0; i < 3; i++) {
-            uint8_t *p = &frame_data[i * 8];
-            targets.t[i].x = ld_decode(p[1] << 8 | p[0]);
-            targets.t[i].y = ld_decode(p[3] << 8 | p[2]);
-            targets.t[i].speed = ld_decode(p[5] << 8 | p[4]);
-            targets.t[i].res =  p[7] << 8 | p[6];
-          }
-
-        if (osMessageQueuePut(trackingQueueHandle, &targets, 0, 0) == osErrorResource) {
-          LDFrame_t old;
-          osMessageQueueGet(trackingQueueHandle, &old, NULL, 0);
-          osMessageQueuePut(trackingQueueHandle, &targets, 0, 0);
-        }
-
-          state = LD_IDLE;
-          byteCounter = 0;
-        } else {
-          state = LD_IDLE;
-          byteCounter = 0;
-        }
-
-
-
-        break;
-        
-      default:
-        break;
+      continue;
     }
 
+    uint16_t head = ld_head;
+    uint16_t tail = ld_tail;
+    SCB_InvalidateDCache_by_Addr((uint32_t *) ld_dma_buf, LD_DMA_BUF_SIZE);
+
+    while (tail != head) {
+      uint8_t value = ld_dma_buf[tail];
+      tail = (tail + 1) % LD_DMA_BUF_SIZE;
+
+      // Verify the data frame
+      ld_feed(value, &state, &byteCounter, frame_data, &targets);
+    }
+
+    ld_tail = tail;
   }
   /* USER CODE END StartProcessTrackingTask */
 }
@@ -805,7 +860,7 @@ void StartTelemetryTask(void *argument)
   char line[160];
   for(;;)
   {
-    osStatus_t status = osMessageQueueGet(trackingQueueHandle, &f, NULL, 0);
+    osStatus_t status = osMessageQueueGet(trackingQueueHandle, &f, NULL, 200);
     if (status == osOK) {
       size_t n = 0;
 
