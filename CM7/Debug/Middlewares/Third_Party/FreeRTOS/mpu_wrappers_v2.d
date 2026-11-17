@@ -1,5 +1,5 @@
 Middlewares/Third_Party/FreeRTOS/mpu_wrappers_v2.o: \
- C:/Users/juanb/OneDrive/Escritorio/ThalosRobot/Middlewares/Third_Party/FreeRTOS/Source/portable/Common/mpu_wrappers_v2.c \
+ /Users/edub/Desktop/escuela/quinto-sem/Embebidos/ThalosRobot/Middlewares/Third_Party/FreeRTOS/Source/portable/Common/mpu_wrappers_v2.c \
  ../../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h \
  ../Core/Inc/FreeRTOSConfig.h \
  ../../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h \

@@ -1,5 +1,9 @@
 Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.o: \
+<<<<<<< HEAD
  C:/Users/juanb/OneDrive/Escritorio/ThalosRobot/Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.c \
+=======
+ /Users/edub/Desktop/escuela/quinto-sem/Embebidos/ThalosRobot/Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.c \
+>>>>>>> 38dc10ddd0ad8870fd7405cab10387caa1101643
  ../../Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h7xx.h \
  ../../Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h755xx.h \
  ../../Drivers/CMSIS/Include/core_cm4.h \

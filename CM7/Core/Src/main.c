@@ -110,7 +110,11 @@ const osThreadAttr_t processTracking_attributes = {
 osThreadId_t telemetryTaskHandle;
 const osThreadAttr_t telemetryTask_attributes = {
   .name = "telemetryTask",
+<<<<<<< HEAD
   .stack_size = 256 * 4,
+=======
+  .stack_size = 512 * 4,
+>>>>>>> 38dc10ddd0ad8870fd7405cab10387caa1101643
   .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for trackingQueue */
@@ -740,6 +744,14 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
   }
 }
 
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
+  if (huart->Instance == USART2) {
+    __HAL_UART_CLEAR_OREFLAG(huart);
+    HAL_UART_Receive_IT(huart, &UART2_rxBuffer, 1);
+  }
+}
+
+
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartMotionTask */
@@ -803,6 +815,7 @@ void StartHeartbeathTask(void *argument)
 /* USER CODE END Header_StartProcessTrackingTask */
 void StartProcessTrackingTask(void *argument)
 {
+  HAL_UART_Receive_IT(&huart2, &UART2_rxBuffer, 1);
   /* USER CODE BEGIN StartProcessTrackingTask */
   /* Infinite loop */
   LDStates_t state = LD_IDLE;

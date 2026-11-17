@@ -61,8 +61,13 @@ all: main-build
 main-build: ThalosRobot_CM4.elf secondary-outputs
 
 # Tool invocations
+<<<<<<< HEAD
 ThalosRobot_CM4.elf ThalosRobot_CM4.map: $(OBJS) $(USER_OBJS) C:\Users\juanb\OneDrive\Escritorio\ThalosRobot\CM4\STM32H755ZITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	arm-none-eabi-gcc -o "ThalosRobot_CM4.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\juanb\OneDrive\Escritorio\ThalosRobot\CM4\STM32H755ZITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ThalosRobot_CM4.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+=======
+ThalosRobot_CM4.elf ThalosRobot_CM4.map: $(OBJS) $(USER_OBJS) /Users/edub/Desktop/escuela/quinto-sem/Embebidos/ThalosRobot/CM4/STM32H755ZITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "ThalosRobot_CM4.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/edub/Desktop/escuela/quinto-sem/Embebidos/ThalosRobot/CM4/STM32H755ZITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ThalosRobot_CM4.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+>>>>>>> 38dc10ddd0ad8870fd7405cab10387caa1101643
 	@echo 'Finished building target: $@'
 	@echo ' '
 
