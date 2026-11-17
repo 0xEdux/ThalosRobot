@@ -27,6 +27,13 @@ typedef struct {
 typedef struct { LD2450_Target_t t[3]; } LD2450_Frame_t;
 
 typedef struct {
+    uint8_t         id;
+    LD2450_Frame_t  frame;
+} LD2450_Msg_t;
+
+typedef struct {
+    uint8_t id;
+
     LD2450_States_t state;
     uint8_t byteCnt;
     uint8_t frameData[24];
@@ -36,7 +43,7 @@ typedef struct {
     osSemaphoreId_t rxSemHandle;
 
     UART_HandleTypeDef *huart;
-     uint8_t dmaBuf[LD2450_DMA_BUF_SIZE];
+    uint8_t dmaBuf[LD2450_DMA_BUF_SIZE] __attribute__((aligned(32)));
 
     volatile uint16_t head;
     volatile uint16_t tail;
@@ -51,14 +58,12 @@ typedef struct {
 
 int16_t LD2450_Decode(uint16_t raw);
 
-void LD2450_Feed(LD2450_Handle_t *radar, uint8_t value );
-void LD2450_Process(LD2450_Handle_t *radar);
+HAL_StatusTypeDef LD2450_Feed(LD2450_Handle_t *radar, uint8_t value );
+HAL_StatusTypeDef LD2450_Process(LD2450_Handle_t *radar);
 
-HAL_StatusTypeDef LD2450_Init(LD2450_Handle_t *radar, UART_HandleTypeDef *huart, osMessageQueueId_t trackingQueueHandle, osSemaphoreId_t rxSemHandle);
+HAL_StatusTypeDef LD2450_Init(LD2450_Handle_t *radar, uint8_t id, UART_HandleTypeDef *huart, osMessageQueueId_t trackingQueueHandle, osSemaphoreId_t rxSemHandle);
 
-HAL_StatusTypeDef LD2450_StartProcessing(LD2450_Handle_t *radar)
-
-void LD2450_RxEventCb(LD2450_Handle_t *radar, UART_HandleTypeDef *huart,  uint16_t size);
-void LD2450_ErrorCb(LD2450_Handle_t *radar, UART_HandleTypeDef *huart);
+HAL_StatusTypeDef LD2450_RxEventCb(LD2450_Handle_t *radar, UART_HandleTypeDef *huart,  uint16_t size);
+HAL_StatusTypeDef LD2450_ErrorCb(LD2450_Handle_t *radar, UART_HandleTypeDef *huart);
 
 #endif /* INC_LD2450_H_ */

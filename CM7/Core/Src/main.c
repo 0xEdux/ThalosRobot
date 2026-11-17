@@ -28,6 +28,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "LD2450.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,14 +38,14 @@
 typedef enum { MOTORA, MOTORB } RobotMotors_t;
 typedef enum { MOTOR_FORWARD, MOTOR_BACKWARD, MOTOR_BRAKE } MotorDirections_t;
 
-typedef enum { LD_IDLE, LD_HEADER, LD_DATA, LD_TAIL } LDStates_t;
-typedef struct { 
-  int16_t x;
-  int16_t y;
-  int16_t speed;
-  uint16_t res;
-} LDTarget_t;
-typedef struct { LDTarget_t t[3]; } LDFrame_t;
+typedef struct {
+  LD2450_Handle_t       *radar;
+  uint8_t                id;
+  UART_HandleTypeDef    *huart;
+  osMessageQueueId_t     queue;
+  osSemaphoreId_t        sem;
+} RadarTaskCfg_t;
+
 
 /* USER CODE END PTD */
 
@@ -51,12 +53,7 @@ typedef struct { LDTarget_t t[3]; } LDFrame_t;
 /* USER CODE BEGIN PD */
 
 #define T_HEARTBEAT_MS      250U      // Cambio de estado del LED verde (Task Heartbeat)
-#define LD_DMA_BUF_SIZE 128U       // 4 tramas del LD2450
 
-__attribute__((aligned(32))) static uint8_t ld_dma_buf[LD_DMA_BUF_SIZE];
-static volatile uint16_t ld_head = 0;
-static volatile uint16_t ld_tail = 0;
-static volatile uint8_t ld_error = 0;
 
 /* DUAL_CORE_BOOT_SYNC_SEQUENCE: Define for dual core boot synchronization    */
 /*                             demonstration code based on hardware semaphore */
@@ -81,8 +78,10 @@ static volatile uint8_t ld_error = 0;
 
 TIM_HandleTypeDef htim2;
 
+UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
+DMA_HandleTypeDef hdma_uart4_rx;
 DMA_HandleTypeDef hdma_usart2_rx;
 
 /* Definitions for motionTask */
@@ -99,13 +98,6 @@ const osThreadAttr_t heartbeatTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for processTracking */
-osThreadId_t processTrackingHandle;
-const osThreadAttr_t processTracking_attributes = {
-  .name = "processTracking",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal1,
-};
 /* Definitions for telemetryTask */
 osThreadId_t telemetryTaskHandle;
 const osThreadAttr_t telemetryTask_attributes = {
@@ -113,10 +105,19 @@ const osThreadAttr_t telemetryTask_attributes = {
   .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for trackingUARTQueue */
-osMessageQueueId_t trackingUARTQueueHandle;
-const osMessageQueueAttr_t trackingUARTQueue_attributes = {
-  .name = "trackingUARTQueue"
+/* Definitions for process1Trackin */
+osThreadId_t process1TrackinHandle;
+const osThreadAttr_t process1Trackin_attributes = {
+  .name = "process1Trackin",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityNormal1,
+};
+/* Definitions for process2Trackin */
+osThreadId_t process2TrackinHandle;
+const osThreadAttr_t process2Trackin_attributes = {
+  .name = "process2Trackin",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityNormal1,
 };
 /* Definitions for trackingQueue */
 osMessageQueueId_t trackingQueueHandle;
@@ -128,13 +129,22 @@ osMutexId_t telemetryMutexHandle;
 const osMutexAttr_t telemetryMutex_attributes = {
   .name = "telemetryMutex"
 };
-/* Definitions for ldRxSem */
-osSemaphoreId_t ldRxSemHandle;
-const osSemaphoreAttr_t ldRxSem_attributes = {
-  .name = "ldRxSem"
+/* Definitions for ldRxSem1 */
+osSemaphoreId_t ldRxSem1Handle;
+const osSemaphoreAttr_t ldRxSem1_attributes = {
+  .name = "ldRxSem1"
+};
+/* Definitions for ldRxSem2 */
+osSemaphoreId_t ldRxSem2Handle;
+const osSemaphoreAttr_t ldRxSem2_attributes = {
+  .name = "ldRxSem2"
 };
 /* USER CODE BEGIN PV */
 
+RadarTaskCfg_t cfg1, cfg2;
+
+LD2450_Handle_t radar1;
+LD2450_Handle_t radar2;
 
 /* USER CODE END PV */
 
@@ -145,12 +155,35 @@ static void MX_DMA_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_UART4_Init(void);
 void StartMotionTask(void *argument);
 void StartHeartbeathTask(void *argument);
-void StartProcessTrackingTask(void *argument);
 void StartTelemetryTask(void *argument);
+void StartProcessTracking1(void *argument);
+void StartProcessTracking2(void *argument);
 
 /* USER CODE BEGIN PFP */
+
+void RadarTask_Run(RadarTaskCfg_t *config) {
+  // Cast the argument to the radar task configuration structure
+  RadarTaskCfg_t *c = (RadarTaskCfg_t *)config;
+
+  // Initialize the radar peripheral; enter error handler if initialization fails
+  if (LD2450_Init(c->radar, c->id, c->huart, c->queue, c->sem) != HAL_OK)
+  {
+      Error_Handler();
+  }
+
+  /* Infinite loop */
+  for (;;)
+  {
+      // Process radar data; if it fails, delay execution to free up CPU
+      if (LD2450_Process(c->radar) != HAL_OK)
+      {
+          osDelay(100);
+      }
+  }
+}
 
 void set_motor_dir(RobotMotors_t motor, MotorDirections_t dir) {
 	switch (dir) {
@@ -185,70 +218,6 @@ void set_motor_dir(RobotMotors_t motor, MotorDirections_t dir) {
 		default:
 			break;
 	}
-}
-
-
-int16_t ld_decode(uint16_t raw) {
-  int16_t mag = raw & 0x7FFF;
-  return (raw & 0x8000) ? mag : -mag;
-}
-
-void ld_feed(uint8_t value, LDStates_t *state, uint8_t *cnt,
-            uint8_t *frame_data, LDFrame_t *targets) {
-
-  switch (*state) {
-      case LD_IDLE:
-        if(*cnt == 0 && value == 0xAA) (*cnt)++;
-        else if (*cnt == 1 && value == 0xFF) (*cnt)++;
-        else if (*cnt == 2 && value == 0x03) (*cnt)++;
-        else if (*cnt == 3 && value == 0x00) {
-          *state = LD_DATA;
-          *cnt = 0;
-        }
-        else if(value == 0xAA) *cnt = 1;
-        else *cnt = 0;
-
-        break;
-
-      case LD_DATA:
-        frame_data[(*cnt)++] = value;
-        if (*cnt == 24) {
-          *cnt = 0;
-          *state = LD_TAIL;
-        }
-
-        break;
-
-      case LD_TAIL:
-        if(*cnt == 0 && value == 0x55) (*cnt)++;
-        else if(*cnt == 1 && value == 0xCC) {
-          // Frame complete
-          for (uint8_t i = 0; i < 3; i++) {
-            uint8_t *p = &frame_data[i * 8];
-            targets->t[i].x = ld_decode(p[1] << 8 | p[0]);
-            targets->t[i].y = ld_decode(p[3] << 8 | p[2]);
-            targets->t[i].speed = ld_decode(p[5] << 8 | p[4]);
-            targets->t[i].res =  p[7] << 8 | p[6];
-          }
-
-        if (osMessageQueuePut(trackingQueueHandle, targets, 0, 0) == osErrorResource) {
-          LDFrame_t old;
-          osMessageQueueGet(trackingQueueHandle, &old, NULL, 0);
-          osMessageQueuePut(trackingQueueHandle, targets, 0, 0);
-        }
-
-          *state = LD_IDLE;
-          *cnt = 0;
-        } else {
-          *state = LD_IDLE;
-          *cnt = 0;
-        }
-
-        break;
-        
-      default:
-        break;
-    }            
 }
 
 void UART_Print(const char *msg){
@@ -332,6 +301,7 @@ Error_Handler();
   MX_USART3_UART_Init();
   MX_TIM2_Init();
   MX_USART2_UART_Init();
+  MX_UART4_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -348,8 +318,11 @@ Error_Handler();
   /* USER CODE END RTOS_MUTEX */
 
   /* Create the semaphores(s) */
-  /* creation of ldRxSem */
-  ldRxSemHandle = osSemaphoreNew(1, 0, &ldRxSem_attributes);
+  /* creation of ldRxSem1 */
+  ldRxSem1Handle = osSemaphoreNew(1, 0, &ldRxSem1_attributes);
+
+  /* creation of ldRxSem2 */
+  ldRxSem2Handle = osSemaphoreNew(1, 0, &ldRxSem2_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
@@ -360,14 +333,14 @@ Error_Handler();
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the queue(s) */
-  /* creation of trackingUARTQueue */
-  trackingUARTQueueHandle = osMessageQueueNew (100, sizeof(uint8_t), &trackingUARTQueue_attributes);
-
   /* creation of trackingQueue */
-  trackingQueueHandle = osMessageQueueNew (3, sizeof(LDFrame_t), &trackingQueue_attributes);
+  trackingQueueHandle = osMessageQueueNew (6, sizeof(LD2450_Msg_t), &trackingQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
+
+  cfg1 = (RadarTaskCfg_t){ &radar1, 1, &huart2, trackingQueueHandle, ldRxSem1Handle };
+  cfg2 = (RadarTaskCfg_t){ &radar2, 2, &huart4, trackingQueueHandle, ldRxSem2Handle };
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -377,11 +350,14 @@ Error_Handler();
   /* creation of heartbeatTask */
   heartbeatTaskHandle = osThreadNew(StartHeartbeathTask, NULL, &heartbeatTask_attributes);
 
-  /* creation of processTracking */
-  processTrackingHandle = osThreadNew(StartProcessTrackingTask, NULL, &processTracking_attributes);
-
   /* creation of telemetryTask */
   telemetryTaskHandle = osThreadNew(StartTelemetryTask, NULL, &telemetryTask_attributes);
+
+  /* creation of process1Trackin */
+  process1TrackinHandle = osThreadNew(StartProcessTracking1, NULL, &process1Trackin_attributes);
+
+  /* creation of process2Trackin */
+  process2TrackinHandle = osThreadNew(StartProcessTracking2, NULL, &process2Trackin_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -521,6 +497,54 @@ static void MX_TIM2_Init(void)
 }
 
 /**
+  * @brief UART4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_UART4_Init(void)
+{
+
+  /* USER CODE BEGIN UART4_Init 0 */
+
+  /* USER CODE END UART4_Init 0 */
+
+  /* USER CODE BEGIN UART4_Init 1 */
+
+  /* USER CODE END UART4_Init 1 */
+  huart4.Instance = UART4;
+  huart4.Init.BaudRate = 256000;
+  huart4.Init.WordLength = UART_WORDLENGTH_8B;
+  huart4.Init.StopBits = UART_STOPBITS_1;
+  huart4.Init.Parity = UART_PARITY_NONE;
+  huart4.Init.Mode = UART_MODE_TX_RX;
+  huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart4.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart4.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart4.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart4.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart4, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart4, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_DisableFifoMode(&huart4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN UART4_Init 2 */
+
+  /* USER CODE END UART4_Init 2 */
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -629,6 +653,9 @@ static void MX_DMA_Init(void)
   /* DMA1_Stream0_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
+  /* DMA1_Stream1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
 
 }
 
@@ -734,18 +761,14 @@ static void MX_GPIO_Init(void)
 
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
-  if(huart->Instance == USART2) {
-    ld_head = Size % LD_DMA_BUF_SIZE;
-    osSemaphoreRelease(ldRxSemHandle);
-  }
+  LD2450_RxEventCb(&radar1, huart, Size);
+  LD2450_RxEventCb(&radar2, huart, Size);
 }
 
 // overrun ó framing: reload
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
-  if(huart->Instance == USART2) {
-    ld_error = 1;
-    osSemaphoreRelease(ldRxSemHandle);
-  }
+  LD2450_ErrorCb(&radar1, huart);
+  LD2450_ErrorCb(&radar2, huart);
 }
 
 /* USER CODE END 4 */
@@ -802,56 +825,6 @@ void StartHeartbeathTask(void *argument)
   /* USER CODE END StartHeartbeathTask */
 }
 
-/* USER CODE BEGIN Header_StartProcessTrackingTask */
-/**
-* @brief Function implementing the processTracking thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartProcessTrackingTask */
-void StartProcessTrackingTask(void *argument)
-{
-  /* USER CODE BEGIN StartProcessTrackingTask */
-  /* Infinite loop */
-  LDStates_t state = LD_IDLE;
-  uint8_t byteCounter = 0;
-  uint8_t frame_data[24] = {};
-  LDFrame_t targets;
-
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart2, ld_dma_buf, LD_DMA_BUF_SIZE);
-  for(;;)
-  {
-    osSemaphoreAcquire(ldRxSemHandle, osWaitForever);
-
-    if(ld_error) {
-      ld_error = 0;
-      HAL_UART_AbortReceive(&huart2);
-      HAL_UARTEx_ReceiveToIdle_DMA(&huart2, ld_dma_buf, LD_DMA_BUF_SIZE);
-      ld_head = 0;
-      ld_tail = 0;
-      state = LD_IDLE;
-      byteCounter = 0;
-
-      continue;
-    }
-
-    uint16_t head = ld_head;
-    uint16_t tail = ld_tail;
-    SCB_InvalidateDCache_by_Addr((uint32_t *) ld_dma_buf, LD_DMA_BUF_SIZE);
-
-    while (tail != head) {
-      uint8_t value = ld_dma_buf[tail];
-      tail = (tail + 1) % LD_DMA_BUF_SIZE;
-
-      // Verify the data frame
-      ld_feed(value, &state, &byteCounter, frame_data, &targets);
-    }
-
-    ld_tail = tail;
-  }
-  /* USER CODE END StartProcessTrackingTask */
-}
-
 /* USER CODE BEGIN Header_StartTelemetryTask */
 /**
 * @brief Function implementing the telemetryTask thread.
@@ -864,30 +837,30 @@ void StartTelemetryTask(void *argument)
   /* USER CODE BEGIN StartTelemetryTask */
   /* Infinite loop */
 
-  LDFrame_t f;
+  LD2450_Msg_t m;
   char line[160];
   for(;;)
   {
-    osStatus_t status = osMessageQueueGet(trackingQueueHandle, &f, NULL, 200);
+    osStatus_t status = osMessageQueueGet(trackingQueueHandle, &m, NULL, 200);
     if (status == osOK) {
       size_t n = 0;
 
       for (int i = 0; i < 3; i++) {
-        const LDTarget_t *t = &f.t[i];
+        const LD2450_Target_t *t = &m.frame.t[i];
 
         // Sin blanco
         if (t->x == 0 && t->y == 0 && t->speed == 0 && t->res == 0) continue;
 
         n += snprintf(line + n, sizeof(line) - n,
-                      "T%d x=%d y=%d v=%d res=%u | ",
+                      "R%u T%d x=%d y=%d v=%d res=%u | ", m.id,
                       i + 1, t->x, t->y, t->speed, (unsigned)t->res);
         if (n >= sizeof(line) - 3) break;
       }
 
       if (n == 0) {
-        snprintf(line, sizeof(line), "sin blancos\r\n");
+        snprintf(line, sizeof(line), "R%u sin blancos\r\n", m.id);
       } else {
-        n -= 3;                        // quita el último " | "
+        n -= 3;
         snprintf(line + n, sizeof(line) - n, "\r\n");
       }
       UART_Print(line);
@@ -896,6 +869,36 @@ void StartTelemetryTask(void *argument)
     }
   }
   /* USER CODE END StartTelemetryTask */
+}
+
+/* USER CODE BEGIN Header_StartProcessTracking1 */
+/**
+* @brief Function implementing the process1Trackin thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartProcessTracking1 */
+void StartProcessTracking1(void *argument)
+{
+  /* USER CODE BEGIN StartProcessTracking1 */
+  /* Infinite loop */
+  RadarTask_Run(&cfg1);
+  /* USER CODE END StartProcessTracking1 */
+}
+
+/* USER CODE BEGIN Header_StartProcessTracking2 */
+/**
+* @brief Function implementing the process2Trackin thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartProcessTracking2 */
+void StartProcessTracking2(void *argument)
+{
+  /* USER CODE BEGIN StartProcessTracking2 */
+  /* Infinite loop */
+  RadarTask_Run(&cfg2);
+  /* USER CODE END StartProcessTracking2 */
 }
 
 /**

@@ -15,7 +15,11 @@ int16_t LD2450_Decode(uint16_t raw) {
 
 
 
-void LD2450_Feed(LD2450_Handle_t *radar, uint8_t value) {
+HAL_StatusTypeDef LD2450_Feed(LD2450_Handle_t *radar, uint8_t value) {
+  if(radar == NULL || radar->initialized == 0) {
+    return HAL_ERROR;
+  }
+
   switch (radar->state) {
       case LD2450_IDLE:
         if (radar->byteCnt == 0 && value == 0xAA) radar->byteCnt++;
@@ -52,10 +56,12 @@ void LD2450_Feed(LD2450_Handle_t *radar, uint8_t value) {
             radar->targets.t[i].res =  p[7] << 8 | p[6];
           }
 
-          if (osMessageQueuePut(radar->trackingQueueHandle, &radar->targets, 0, 0) == osErrorResource) {
-            LD2450_Frame_t old;
+          LD2450_Msg_t msg = { .id = radar->id, .frame = radar->targets };
+
+          if (osMessageQueuePut(radar->trackingQueueHandle, &msg, 0, 0) == osErrorResource) {
+            LD2450_Msg_t old;
             osMessageQueueGet(radar->trackingQueueHandle, &old, NULL, 0);
-            osMessageQueuePut(radar->trackingQueueHandle, &radar->targets, 0, 0);
+            osMessageQueuePut(radar->trackingQueueHandle, &msg, 0, 0);
           }
 
           radar->state = LD2450_IDLE;
@@ -69,37 +75,50 @@ void LD2450_Feed(LD2450_Handle_t *radar, uint8_t value) {
         
       default:
         break;
-  }            
+  }
+  
+  return HAL_OK;
 }
 
-void LD2450_Process(LD2450_Handle_t *radar) {
-    osSemaphoreAcquire(radar->rxSemHandle, osWaitForever);
+HAL_StatusTypeDef LD2450_Process(LD2450_Handle_t *radar) {
 
-    if(radar->error) {
-      radar->error = 0;
-      HAL_UART_AbortReceive(radar->huart);
-      HAL_UARTEx_ReceiveToIdle_DMA(radar->huart, radar->dmaBuf, LD2450_DMA_BUF_SIZE);
-      radar->head = 0;
-      radar->tail = 0;
-      radar->state = LD2450_IDLE;
-      radar->byteCnt = 0;
+  if(radar == NULL || radar->initialized == 0) {
+    return HAL_ERROR;
+  }
 
-      return;
+  osSemaphoreAcquire(radar->rxSemHandle, osWaitForever);
+
+  if(radar->error) {
+    HAL_UART_AbortReceive(radar->huart);
+    radar->head = 0;
+    radar->tail = 0;
+    radar->error = 0;
+    radar->state = LD2450_IDLE;
+    radar->byteCnt = 0;
+    
+    HAL_StatusTypeDef status = HAL_UARTEx_ReceiveToIdle_DMA(radar->huart, radar->dmaBuf, LD2450_DMA_BUF_SIZE);
+
+    if(status != HAL_OK ) {
+      radar->initialized = 0;
     }
 
-    SCB_InvalidateDCache_by_Addr((uint32_t *) radar->dmaBuf, LD2450_DMA_BUF_SIZE);
+    return HAL_ERROR;
+  }
 
-    while (radar->tail != radar->head) {
-      uint8_t value = radar->dmaBuf[radar->tail];
-      radar->tail = (radar->tail + 1) % LD2450_DMA_BUF_SIZE;
+  SCB_InvalidateDCache_by_Addr((uint32_t *) radar->dmaBuf, LD2450_DMA_BUF_SIZE);
 
-      // Verify the data frame
-      LD2450_Feed(radar, value);
-    }
+  while (radar->tail != radar->head) {
+    uint8_t value = radar->dmaBuf[radar->tail];
+    radar->tail = (radar->tail + 1) % LD2450_DMA_BUF_SIZE;
 
+    // Verify the data frame
+    LD2450_Feed(radar, value);
+  }
+
+  return HAL_OK;
 }
 
-HAL_StatusTypeDef LD2450_Init(LD2450_Handle_t *radar, UART_HandleTypeDef *huart, osMessageQueueId_t trackingQueueHandle, osSemaphoreId_t rxSemHandle) {
+HAL_StatusTypeDef LD2450_Init(LD2450_Handle_t *radar, uint8_t id, UART_HandleTypeDef *huart, osMessageQueueId_t trackingQueueHandle, osSemaphoreId_t rxSemHandle) {
     if (radar == NULL || huart == NULL) {
         return HAL_ERROR;
     }
@@ -107,6 +126,7 @@ HAL_StatusTypeDef LD2450_Init(LD2450_Handle_t *radar, UART_HandleTypeDef *huart,
     radar->huart = huart;
     radar->trackingQueueHandle = trackingQueueHandle;
     radar->rxSemHandle = rxSemHandle;
+    radar->id = id;
 
     radar->state = LD2450_IDLE;
     radar->initialized = 0;
@@ -119,31 +139,45 @@ HAL_StatusTypeDef LD2450_Init(LD2450_Handle_t *radar, UART_HandleTypeDef *huart,
         radar->dmaBuf[i] = 0;
     }
 
+    SCB_CleanInvalidateDCache_by_Addr((uint32_t *)radar->dmaBuf, LD2450_DMA_BUF_SIZE);
+
     HAL_StatusTypeDef status = HAL_UARTEx_ReceiveToIdle_DMA(radar->huart, radar->dmaBuf, LD2450_DMA_BUF_SIZE);
-    
-    if (status != HAL_OK) {
-        return status;
-    }
 
     radar->initialized = 1;
+
+    
+    if (status != HAL_OK) {
+        radar->initialized = 0;
+        return status;
+    }
 
     return HAL_OK;
 }
 
-HAL_StatusTypeDef LD2450_StartProcessing(LD2450_Handle_t *radar) {
-  return HAL_UARTEx_ReceiveToIdle_DMA(radar->huart, radar->dmaBuf, LD2450_DMA_BUF_SIZE);
+HAL_StatusTypeDef LD2450_RxEventCb(LD2450_Handle_t *radar, UART_HandleTypeDef *huart,  uint16_t size) {
+  if(radar == NULL || radar->initialized == 0 ||  huart == NULL) {
+    return HAL_ERROR;
+  }
+
+  if(huart == radar->huart) {
+      radar->head = size % LD2450_DMA_BUF_SIZE;
+      osSemaphoreRelease(radar->rxSemHandle);
+      return HAL_OK;
+  }
+
+  return HAL_ERROR;
 }
 
-void LD2450_RxEventCb(LD2450_Handle_t *radar, UART_HandleTypeDef *huart,  uint16_t size) {
-    if(huart == radar->huart) {
-        radar->head = size % LD2450_DMA_BUF_SIZE;
-        osSemaphoreRelease(radar->rxSemHandle);
-    }
-}
+HAL_StatusTypeDef LD2450_ErrorCb(LD2450_Handle_t *radar, UART_HandleTypeDef *huart) {
+  if(radar == NULL || radar->initialized == 0 ||  huart == NULL) {
+    return HAL_ERROR;
+  }
 
-void LD2450_ErrorCb(LD2450_Handle_t *radar, UART_HandleTypeDef *huart) {
-    if(huart == radar->huart) {
-        radar->error = 1;
-        osSemaphoreRelease(radar->rxSemHandle);
-    }
+  if(huart == radar->huart) {
+      radar->error = 1;
+      osSemaphoreRelease(radar->rxSemHandle);
+      return HAL_OK;
+  }
+
+  return HAL_ERROR;
 }
