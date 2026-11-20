@@ -1,0 +1,4 @@
+../Core/Src/vl6180x.c:5:19:VL6180X_ReadModelID	32	static
+../Core/Src/vl6180x.c:24:19:VL6180X_SetAddress	40	static
+../Core/Src/vl6180x.c:50:26:VL6180X_Write8	32	static
+../Core/Src/vl6180x.c:67:19:VL6180X_Init	24	static

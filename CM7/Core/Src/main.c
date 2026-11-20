@@ -29,6 +29,7 @@
 #include <string.h>
 
 #include "LD2450.h"
+#include "vl6180x.h"
 
 /* USER CODE END Includes */
 
@@ -76,6 +77,8 @@ typedef struct {
 
 /* Private variables ---------------------------------------------------------*/
 
+I2C_HandleTypeDef hi2c1;
+
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart4;
@@ -119,6 +122,13 @@ const osThreadAttr_t process2Trackin_attributes = {
   .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityNormal1,
 };
+/* Definitions for tofTask */
+osThreadId_t tofTaskHandle;
+const osThreadAttr_t tofTask_attributes = {
+  .name = "tofTask",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityAboveNormal,
+};
 /* Definitions for trackingQueue */
 osMessageQueueId_t trackingQueueHandle;
 const osMessageQueueAttr_t trackingQueue_attributes = {
@@ -156,11 +166,13 @@ static void MX_USART3_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_UART4_Init(void);
+static void MX_I2C1_Init(void);
 void StartMotionTask(void *argument);
 void StartHeartbeathTask(void *argument);
 void StartTelemetryTask(void *argument);
 void StartProcessTracking1(void *argument);
 void StartProcessTracking2(void *argument);
+void StartTofTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -302,6 +314,7 @@ Error_Handler();
   MX_TIM2_Init();
   MX_USART2_UART_Init();
   MX_UART4_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -358,6 +371,9 @@ Error_Handler();
 
   /* creation of process2Trackin */
   process2TrackinHandle = osThreadNew(StartProcessTracking2, NULL, &process2Trackin_attributes);
+
+  /* creation of tofTask */
+  tofTaskHandle = osThreadNew(StartTofTask, NULL, &tofTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -431,6 +447,54 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.Timing = 0x00707CBB;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
 }
 
 /**
@@ -686,6 +750,9 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LD1_Pin|LD2_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOD, VL_FRONT_Pin|VL_LEFT_Pin|VL_RIGHT_Pin, GPIO_PIN_RESET);
+
   /*Configure GPIO pins : MOTOR_IN3_Pin MOTOR_IN1_Pin MOTOR_IN2_Pin MOTOR_IN4_Pin
                            LD3_Pin */
   GPIO_InitStruct.Pin = MOTOR_IN3_Pin|MOTOR_IN1_Pin|MOTOR_IN2_Pin|MOTOR_IN4_Pin
@@ -731,6 +798,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : VL_FRONT_Pin VL_LEFT_Pin VL_RIGHT_Pin */
+  GPIO_InitStruct.Pin = VL_FRONT_Pin|VL_LEFT_Pin|VL_RIGHT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PA8 PA11 PA12 */
   GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_11|GPIO_PIN_12;
@@ -820,7 +894,7 @@ void StartHeartbeathTask(void *argument)
   {
 	  HAL_GPIO_TogglePin(LD1_GPIO_Port, LD1_Pin);
 	  osDelay(T_HEARTBEAT_MS);
-    UART_Print("Heartbeat!!\r\n");
+    //UART_Print("Heartbeat!!\r\n");
   }
   /* USER CODE END StartHeartbeathTask */
 }
@@ -863,9 +937,9 @@ void StartTelemetryTask(void *argument)
         n -= 3;
         snprintf(line + n, sizeof(line) - n, "\r\n");
       }
-      UART_Print(line);
+      //UART_Print(line);
     } else if (status == osErrorTimeout) {
-      UART_Print("radar sin datos\r\n");
+      //UART_Print("radar sin datos\r\n");
     }
   }
   /* USER CODE END StartTelemetryTask */
@@ -899,6 +973,131 @@ void StartProcessTracking2(void *argument)
   /* Infinite loop */
   RadarTask_Run(&cfg2);
   /* USER CODE END StartProcessTracking2 */
+}
+
+/* USER CODE BEGIN Header_StartTofTask */
+/**
+* @brief Function implementing the tofTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartTofTask */
+void StartTofTask(void *argument)
+{
+  /* USER CODE BEGIN StartTofTask */
+  /* Infinite loop */
+
+  (void)argument;
+
+  VL6180X_t sensors[3] = {
+    {&hi2c1, VL6180X_DEFAULT_ADDRESS},
+    {&hi2c1, VL6180X_DEFAULT_ADDRESS},
+    {&hi2c1, VL6180X_DEFAULT_ADDRESS},
+  };
+
+  GPIO_TypeDef * const ports[3] = {
+    VL_FRONT_GPIO_Port, VL_LEFT_GPIO_Port, VL_RIGHT_GPIO_Port,
+  };
+
+  const uint16_t pins[3] = {
+    VL_FRONT_Pin, VL_LEFT_Pin, VL_RIGHT_Pin,
+  };
+
+  const uint8_t addresses[3] = {0x30U, 0x31U, 0x32U};
+  const char *names[3] = { "Centro", "Izquierdo", "Derecho"};
+  uint8_t ready[3] = {0};
+  char message[128];
+
+  // reinicia los tres GPIO
+  for(uint32_t i = 0; i < 3; ++i){
+    HAL_GPIO_WritePin(ports[i], pins[i], GPIO_PIN_RESET);
+  }
+  osDelay(5);
+
+  // GPIOS en open drain, SET libera SHDN y se habilita el sensor
+  for(uint32_t i = 0; i < 3; i++){
+    HAL_GPIO_WritePin(ports[i], pins[i], GPIO_PIN_SET);
+    osDelay(10);
+
+    uint8_t id = 0;
+    const char *paso = "ID inicial";
+    HAL_StatusTypeDef status = VL6180X_ReadModelID(&sensors[i], &id);
+
+    if(status == HAL_OK && id == 0xB4){
+      paso = "cambiar direccion";
+      status = VL6180X_SetAddress(&sensors[i], addresses[i]);
+
+      if(status == HAL_OK){
+        paso = "verificar direccion"; 
+        status = VL6180X_ReadModelID(&sensors[i], &id);
+      }
+    }
+
+    if(status == HAL_OK && id == 0xB4U){
+      paso = "inicializar";
+      status = VL6180X_Init(&sensors[i]);
+    }
+
+    if(status == HAL_OK && id == 0xB4){
+      ready[i] = 1; // mantenemos SHDN libre
+
+      snprintf(message, sizeof(message),
+        "VL %s [0x%02X]: inicializado OK\r\n",
+        names[i],
+        (unsigned int)sensors[i].address_7bit);
+
+    } else {
+      uint32_t error_i2c = HAL_I2C_GetError(sensors[i].i2c);
+      // aislamos el sensor que fallo antes de habilitar otro
+      HAL_GPIO_WritePin(ports[i], pins[i],GPIO_PIN_RESET);
+
+      snprintf(message, sizeof(message),
+        "VL %s: fallo paso=%s dir=0x%02X HAL=%u "
+        "I2C=0x%08lX ID=0x%02X\r\n",
+        names[i], 
+        paso,
+        (unsigned int)sensors[i].address_7bit,
+        (unsigned int)status,
+        (unsigned int)error_i2c,
+        (unsigned int)id);
+    }
+
+    UART_Print(message);
+  }
+
+  for(;;) {
+    for(uint32_t i = 0; i < 3; ++i){
+      if(ready[i] == 0){
+    	  snprintf(message, sizeof(message),
+          "VL %s: no disponible\r\n", names[i]);
+
+      } else {
+        uint8_t id = 0;
+        HAL_StatusTypeDef status = VL6180X_ReadModelID(&sensors[i], &id);
+
+        if(status == HAL_OK){
+          snprintf(message, sizeof(message),
+            "VL %s [0x%02X]: ID=0x%02X%s\r\n",
+            names[i], (unsigned int)sensors
+            [i].address_7bit,
+            (unsigned int)id,
+            (id == 0xB4) ? " OK" : " ID inesperado");
+        } else {
+          snprintf(message, sizeof(message),
+            "VL %s [0x%02X]: HAL=%u I2C=0x%08lX\r\n",
+            names[i], 
+            (unsigned int)sensors[i].address_7bit,
+            (unsigned int)status,
+            (unsigned long)HAL_I2C_GetError(sensors[i].i2c));
+        }
+      }
+
+      UART_Print(message);
+    }
+
+    osDelay(1000);
+  }
+  /* USER CODE END StartTofTask */
 }
 
 /**

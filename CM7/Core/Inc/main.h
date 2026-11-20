@@ -76,6 +76,12 @@ void Error_Handler(void);
 #define ENB_GPIO_Port GPIOB
 #define LD2_Pin GPIO_PIN_14
 #define LD2_GPIO_Port GPIOB
+#define VL_FRONT_Pin GPIO_PIN_11
+#define VL_FRONT_GPIO_Port GPIOD
+#define VL_LEFT_Pin GPIO_PIN_12
+#define VL_LEFT_GPIO_Port GPIOD
+#define VL_RIGHT_Pin GPIO_PIN_13
+#define VL_RIGHT_GPIO_Port GPIOD
 #define ENA_Pin GPIO_PIN_3
 #define ENA_GPIO_Port GPIOB
 #define LD3_Pin GPIO_PIN_1

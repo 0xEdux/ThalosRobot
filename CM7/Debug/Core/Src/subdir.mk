@@ -12,7 +12,8 @@ C_SRCS += \
 ../Core/Src/stm32h7xx_hal_timebase_tim.c \
 ../Core/Src/stm32h7xx_it.c \
 ../Core/Src/syscalls.c \
-../Core/Src/sysmem.c 
+../Core/Src/sysmem.c \
+../Core/Src/vl6180x.c 
 
 OBJS += \
 ./Core/Src/LD2450.o \
@@ -22,7 +23,8 @@ OBJS += \
 ./Core/Src/stm32h7xx_hal_timebase_tim.o \
 ./Core/Src/stm32h7xx_it.o \
 ./Core/Src/syscalls.o \
-./Core/Src/sysmem.o 
+./Core/Src/sysmem.o \
+./Core/Src/vl6180x.o 
 
 C_DEPS += \
 ./Core/Src/LD2450.d \
@@ -32,7 +34,8 @@ C_DEPS += \
 ./Core/Src/stm32h7xx_hal_timebase_tim.d \
 ./Core/Src/stm32h7xx_it.d \
 ./Core/Src/syscalls.d \
-./Core/Src/sysmem.d 
+./Core/Src/sysmem.d \
+./Core/Src/vl6180x.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
@@ -42,7 +45,7 @@ Core/Src/%.o Core/Src/%.su Core/Src/%.cyclo: ../Core/Src/%.c Core/Src/subdir.mk
 clean: clean-Core-2f-Src
 
 clean-Core-2f-Src:
-	-$(RM) ./Core/Src/LD2450.cyclo ./Core/Src/LD2450.d ./Core/Src/LD2450.o ./Core/Src/LD2450.su ./Core/Src/freertos.cyclo ./Core/Src/freertos.d ./Core/Src/freertos.o ./Core/Src/freertos.su ./Core/Src/main.cyclo ./Core/Src/main.d ./Core/Src/main.o ./Core/Src/main.su ./Core/Src/stm32h7xx_hal_msp.cyclo ./Core/Src/stm32h7xx_hal_msp.d ./Core/Src/stm32h7xx_hal_msp.o ./Core/Src/stm32h7xx_hal_msp.su ./Core/Src/stm32h7xx_hal_timebase_tim.cyclo ./Core/Src/stm32h7xx_hal_timebase_tim.d ./Core/Src/stm32h7xx_hal_timebase_tim.o ./Core/Src/stm32h7xx_hal_timebase_tim.su ./Core/Src/stm32h7xx_it.cyclo ./Core/Src/stm32h7xx_it.d ./Core/Src/stm32h7xx_it.o ./Core/Src/stm32h7xx_it.su ./Core/Src/syscalls.cyclo ./Core/Src/syscalls.d ./Core/Src/syscalls.o ./Core/Src/syscalls.su ./Core/Src/sysmem.cyclo ./Core/Src/sysmem.d ./Core/Src/sysmem.o ./Core/Src/sysmem.su
+	-$(RM) ./Core/Src/LD2450.cyclo ./Core/Src/LD2450.d ./Core/Src/LD2450.o ./Core/Src/LD2450.su ./Core/Src/freertos.cyclo ./Core/Src/freertos.d ./Core/Src/freertos.o ./Core/Src/freertos.su ./Core/Src/main.cyclo ./Core/Src/main.d ./Core/Src/main.o ./Core/Src/main.su ./Core/Src/stm32h7xx_hal_msp.cyclo ./Core/Src/stm32h7xx_hal_msp.d ./Core/Src/stm32h7xx_hal_msp.o ./Core/Src/stm32h7xx_hal_msp.su ./Core/Src/stm32h7xx_hal_timebase_tim.cyclo ./Core/Src/stm32h7xx_hal_timebase_tim.d ./Core/Src/stm32h7xx_hal_timebase_tim.o ./Core/Src/stm32h7xx_hal_timebase_tim.su ./Core/Src/stm32h7xx_it.cyclo ./Core/Src/stm32h7xx_it.d ./Core/Src/stm32h7xx_it.o ./Core/Src/stm32h7xx_it.su ./Core/Src/syscalls.cyclo ./Core/Src/syscalls.d ./Core/Src/syscalls.o ./Core/Src/syscalls.su ./Core/Src/sysmem.cyclo ./Core/Src/sysmem.d ./Core/Src/sysmem.o ./Core/Src/sysmem.su ./Core/Src/vl6180x.cyclo ./Core/Src/vl6180x.d ./Core/Src/vl6180x.o ./Core/Src/vl6180x.su
 
 .PHONY: clean-Core-2f-Src
 
