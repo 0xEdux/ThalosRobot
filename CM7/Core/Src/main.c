@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "LD2450.h"
 
@@ -46,6 +47,18 @@ typedef struct {
   osSemaphoreId_t        sem;
 } RadarTaskCfg_t;
 
+typedef struct {
+  int16_t x, y, speed;
+  uint8_t src;             // bit0 = visto por R1, bit1 = visto por R2
+} Fused_Target_t;
+
+#define MAX_FUSED    6
+
+typedef struct {
+  uint32_t timestamp;
+  uint8_t  count;
+  Fused_Target_t t[MAX_FUSED];
+} Fused_Msg_t;
 
 /* USER CODE END PTD */
 
@@ -54,6 +67,9 @@ typedef struct {
 
 #define T_HEARTBEAT_MS      250U      // Cambio de estado del LED verde (Task Heartbeat)
 
+#define DISTANCE_T   600   // mm entre radares
+#define MAX_AGE_MS   150   // un frame más viejo se descarta
+#define GATE_MM      400   // distancia máxima para considerar el mismo blanco
 
 /* DUAL_CORE_BOOT_SYNC_SEQUENCE: Define for dual core boot synchronization    */
 /*                             demonstration code based on hardware semaphore */
@@ -119,10 +135,22 @@ const osThreadAttr_t process2Trackin_attributes = {
   .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityNormal1,
 };
+/* Definitions for fusionLD */
+osThreadId_t fusionLDHandle;
+const osThreadAttr_t fusionLD_attributes = {
+  .name = "fusionLD",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
 /* Definitions for trackingQueue */
 osMessageQueueId_t trackingQueueHandle;
 const osMessageQueueAttr_t trackingQueue_attributes = {
   .name = "trackingQueue"
+};
+/* Definitions for fusedQueue */
+osMessageQueueId_t fusedQueueHandle;
+const osMessageQueueAttr_t fusedQueue_attributes = {
+  .name = "fusedQueue"
 };
 /* Definitions for telemetryMutex */
 osMutexId_t telemetryMutexHandle;
@@ -161,8 +189,34 @@ void StartHeartbeathTask(void *argument);
 void StartTelemetryTask(void *argument);
 void StartProcessTracking1(void *argument);
 void StartProcessTracking2(void *argument);
+void StartFusionLD(void *argument);
 
 /* USER CODE BEGIN PFP */
+
+uint8_t normalize(const LD2450_Msg_t *m, int16_t x_offset, uint8_t src, Fused_Target_t *out) {
+    uint8_t n = 0;
+
+    for(int i = 0; i < 3; i++) {
+      const LD2450_Target_t *t = &m->frame.t[i];
+      if(!target_valid(t)) continue;
+
+      out[n].x = t->x + x_offset;
+      out[n].y = t->y;
+      out[n].speed = t->speed;
+      out[n].src = src;
+
+      n++;
+    }
+
+    return n;
+}
+
+void push(LD2450_Msg_t *out, uint8_t *count, const LD2450_Target_t *t) {
+  if(*count >= 3) return;
+  out->frame.t[*count] = *t;
+
+  (*count)++;
+}
 
 void RadarTask_Run(RadarTaskCfg_t *config) {
   // Cast the argument to the radar task configuration structure
@@ -336,6 +390,9 @@ Error_Handler();
   /* creation of trackingQueue */
   trackingQueueHandle = osMessageQueueNew (6, sizeof(LD2450_Msg_t), &trackingQueue_attributes);
 
+  /* creation of fusedQueue */
+  fusedQueueHandle = osMessageQueueNew (8, sizeof(uint16_t), &fusedQueue_attributes);
+
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
 
@@ -358,6 +415,9 @@ Error_Handler();
 
   /* creation of process2Trackin */
   process2TrackinHandle = osThreadNew(StartProcessTracking2, NULL, &process2Trackin_attributes);
+
+  /* creation of fusionLD */
+  fusionLDHandle = osThreadNew(StartFusionLD, NULL, &fusionLD_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -899,6 +959,87 @@ void StartProcessTracking2(void *argument)
   /* Infinite loop */
   RadarTask_Run(&cfg2);
   /* USER CODE END StartProcessTracking2 */
+}
+
+/* USER CODE BEGIN Header_StartFusionLD */
+/**
+* @brief Function implementing the fusionLD thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartFusionLD */
+void StartFusionLD(void *argument)
+{
+  /* USER CODE BEGIN StartFusionLD */
+  /* Infinite loop */
+
+
+  LD2450_Msg_t m;
+  LD2450_Msg_t latest_data[2];
+
+  // Bandera para verificar data inicial
+  uint8_t have_data[2] = {0, 0};
+
+  for(;;)
+  {
+    osStatus_t status = osMessageQueueGet(trackingQueueHandle, &m, NULL, 200);
+
+    if(status != osOK) continue;
+    if(m.id < 1 || m.id < 2) continue;
+
+    latest_data[m.id - 1] = m;
+    have_data[m.id - 1] = 1;
+
+    uint32_t now = osKernelGetTickCount();
+    uint8_t fresh_data[2];
+
+    for (int r = 0; r < 2; r++) {
+      fresh_data[r] = have_data[r] && ((now - latest_data[r].timestamp) < MAX_AGE_MS);
+    }
+
+    LD2450_Target_t a[3], b[3];
+    uint8_t na = fresh_data[0] ? collect(&latest_data[0], -(DISTANCE_T / 2), a) : 0;
+    uint8_t nb = fresh_data[1] ? collect(&latest_data[1],  (DISTANCE_T / 2), b) : 0;
+    uint8_t used_b[3] = {0, 0, 0};
+
+    LD2450_Msg_t out;
+    memset(&out, 0, sizeof(out));   // los slots vacíos quedan en (0,0,0,0)
+    out.id = 0;                     // 0 = fusionado
+    out.timestamp = now;
+    uint8_t count = 0;
+
+    for (int i = 0; i < na; i++) {
+      int best = -1;
+      int32_t best_d2 = (int32_t)GATE_MM * GATE_MM;
+
+      for (int j = 0; j < nb; j++) {
+        if (used_b[j]) continue;
+        int32_t dx = a[i].x - b[j].x;
+        int32_t dy = a[i].y - b[j].y;
+        int32_t d2 = dx * dx + dy * dy;
+        if (d2 < best_d2) { best_d2 = d2; best = j; }
+      }
+
+      if (best >= 0) {
+        used_b[best] = 1;
+        LD2450_Target_t f = a[i];
+        f.x     = (a[i].x + b[best].x) / 2;
+        f.y     = (a[i].y + b[best].y) / 2;
+        f.speed = (a[i].speed + b[best].speed) / 2;
+        f.res   = 0;
+        push(&out, &count, &f);
+      } else {
+        push(&out, &count, &a[i]);
+      }
+    }
+
+    for (int j = 0; j < nb; j++) {
+      if (!used_b[j]) push(&out, &count, &b[j]);
+    }
+
+    osMessageQueuePut(fusedQueueHandle, &out, 0, 0);
+  }
+  /* USER CODE END StartFusionLD */
 }
 
 /**

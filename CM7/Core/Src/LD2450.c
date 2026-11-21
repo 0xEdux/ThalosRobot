@@ -56,7 +56,9 @@ HAL_StatusTypeDef LD2450_Feed(LD2450_Handle_t *radar, uint8_t value) {
             radar->targets.t[i].res =  p[7] << 8 | p[6];
           }
 
-          LD2450_Msg_t msg = { .id = radar->id, .frame = radar->targets };
+          int ticks = xTaskGetTickCount()
+
+          LD2450_Msg_t msg = { .id = radar->id, .frame = radar->targets, .timestamp = ticks };
 
           if (osMessageQueuePut(radar->trackingQueueHandle, &msg, 0, 0) == osErrorResource) {
             LD2450_Msg_t old;
@@ -180,4 +182,8 @@ HAL_StatusTypeDef LD2450_ErrorCb(LD2450_Handle_t *radar, UART_HandleTypeDef *hua
   }
 
   return HAL_ERROR;
+}
+
+int target_valid(const LD2450_Target_t *t) {
+  return !(t->x == 0 && t->y == 0 && t->speed == 0 && t->res == 0);
 }

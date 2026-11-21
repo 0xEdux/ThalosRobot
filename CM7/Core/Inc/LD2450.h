@@ -29,6 +29,7 @@ typedef struct { LD2450_Target_t t[3]; } LD2450_Frame_t;
 typedef struct {
     uint8_t         id;
     LD2450_Frame_t  frame;
+    int             timestamp;
 } LD2450_Msg_t;
 
 typedef struct {
@@ -65,5 +66,7 @@ HAL_StatusTypeDef LD2450_Init(LD2450_Handle_t *radar, uint8_t id, UART_HandleTyp
 
 HAL_StatusTypeDef LD2450_RxEventCb(LD2450_Handle_t *radar, UART_HandleTypeDef *huart,  uint16_t size);
 HAL_StatusTypeDef LD2450_ErrorCb(LD2450_Handle_t *radar, UART_HandleTypeDef *huart);
+
+int target_valid(const LD2450_Target_t *t);
 
 #endif /* INC_LD2450_H_ */
