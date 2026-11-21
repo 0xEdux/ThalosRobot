@@ -17,6 +17,6 @@
 ../Core/Src/main.c:909:6:StartTelemetryTask	264	static
 ../Core/Src/main.c:955:6:StartProcessTracking1	16	static
 ../Core/Src/main.c:970:6:StartProcessTracking2	16	static
-../Core/Src/main.c:985:6:StartTofTask	280	static
-../Core/Src/main.c:1111:6:HAL_TIM_PeriodElapsedCallback	16	static
-../Core/Src/main.c:1129:6:Error_Handler	4	static,ignoring_inline_asm
+../Core/Src/main.c:985:6:StartTofTask	248	static
+../Core/Src/main.c:1054:6:HAL_TIM_PeriodElapsedCallback	16	static
+../Core/Src/main.c:1072:6:Error_Handler	4	static,ignoring_inline_asm

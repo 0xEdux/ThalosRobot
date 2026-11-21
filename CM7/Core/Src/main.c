@@ -985,8 +985,6 @@ void StartProcessTracking2(void *argument)
 void StartTofTask(void *argument)
 {
   /* USER CODE BEGIN StartTofTask */
-  /* Infinite loop */
-
   (void)argument;
 
   VL6180X_t sensors[3] = {
@@ -996,107 +994,52 @@ void StartTofTask(void *argument)
   };
 
   GPIO_TypeDef * const ports[3] = {
-    VL_FRONT_GPIO_Port, VL_LEFT_GPIO_Port, VL_RIGHT_GPIO_Port,
+    VL_FRONT_GPIO_Port, VL_LEFT_GPIO_Port, VL_RIGHT_GPIO_Port
   };
 
   const uint16_t pins[3] = {
-    VL_FRONT_Pin, VL_LEFT_Pin, VL_RIGHT_Pin,
+    VL_FRONT_Pin, VL_LEFT_Pin, VL_RIGHT_Pin
   };
 
   const uint8_t addresses[3] = {0x30U, 0x31U, 0x32U};
-  const char *names[3] = { "Centro", "Izquierdo", "Derecho"};
+  const char * const name[3] = {"Centro", "Izquierdo", "Derecho"};
+
   uint8_t ready[3] = {0};
   char message[128];
 
-  // reinicia los tres GPIO
+  // mantenemos apagados los tres antes de asignar direcciones
   for(uint32_t i = 0; i < 3; ++i){
     HAL_GPIO_WritePin(ports[i], pins[i], GPIO_PIN_RESET);
   }
   osDelay(5);
 
-  // GPIOS en open drain, SET libera SHDN y se habilita el sensor
-  for(uint32_t i = 0; i < 3; i++){
+  for(uint32_t i = 0; i < 3; ++i){
     HAL_GPIO_WritePin(ports[i], pins[i], GPIO_PIN_SET);
     osDelay(10);
 
-    uint8_t id = 0;
-    const char *paso = "ID inicial";
-    HAL_StatusTypeDef status = VL6180X_ReadModelID(&sensors[i], &id);
-
-    if(status == HAL_OK && id == 0xB4){
-      paso = "cambiar direccion";
-      status = VL6180X_SetAddress(&sensors[i], addresses[i]);
-
-      if(status == HAL_OK){
-        paso = "verificar direccion"; 
-        status = VL6180X_ReadModelID(&sensors[i], &id);
-      }
-    }
-
-    if(status == HAL_OK && id == 0xB4U){
-      paso = "inicializar";
-      status = VL6180X_Init(&sensors[i]);
-    }
-
-    if(status == HAL_OK && id == 0xB4){
-      ready[i] = 1; // mantenemos SHDN libre
-
-      snprintf(message, sizeof(message),
-        "VL %s [0x%02X]: inicializado OK\r\n",
-        names[i],
-        (unsigned int)sensors[i].address_7bit);
-
-    } else {
-      uint32_t error_i2c = HAL_I2C_GetError(sensors[i].i2c);
-      // aislamos el sensor que fallo antes de habilitar otro
-      HAL_GPIO_WritePin(ports[i], pins[i],GPIO_PIN_RESET);
-
-      snprintf(message, sizeof(message),
-        "VL %s: fallo paso=%s dir=0x%02X HAL=%u "
-        "I2C=0x%08lX ID=0x%02X\r\n",
-        names[i], 
-        paso,
-        (unsigned int)sensors[i].address_7bit,
-        (unsigned int)status,
-        (unsigned int)error_i2c,
-        (unsigned int)id);
-    }
-
-    UART_Print(message);
+    VL6180X_SetAddress(&sensors[i], addresses[i]);
+    VL6180X_Init(&sensors[i]);
   }
 
-  for(;;) {
+  for(;;){
     for(uint32_t i = 0; i < 3; ++i){
-      if(ready[i] == 0){
-    	  snprintf(message, sizeof(message),
-          "VL %s: no disponible\r\n", names[i]);
+      VL6180X_Range_t result;
+      HAL_StatusTypeDef status = VL6180X_ReadRange(&sensors[i], &result);
 
-      } else {
-        uint8_t id = 0;
-        HAL_StatusTypeDef status = VL6180X_ReadModelID(&sensors[i], &id);
+      if(status == HAL_OK && result.range_status == 0){
+        snprintf(message, sizeof(message),
+          "VL %s: %u mm\r\n",
+          name[i],
+          (unsigned int)result.distance_mm);
 
-        if(status == HAL_OK){
-          snprintf(message, sizeof(message),
-            "VL %s [0x%02X]: ID=0x%02X%s\r\n",
-            names[i], (unsigned int)sensors
-            [i].address_7bit,
-            (unsigned int)id,
-            (id == 0xB4) ? " OK" : " ID inesperado");
-        } else {
-          snprintf(message, sizeof(message),
-            "VL %s [0x%02X]: HAL=%u I2C=0x%08lX\r\n",
-            names[i], 
-            (unsigned int)sensors[i].address_7bit,
-            (unsigned int)status,
-            (unsigned long)HAL_I2C_GetError(sensors[i].i2c));
-        }
+        UART_Print(message);
       }
-
-      UART_Print(message);
     }
 
-    osDelay(1000);
+    osDelay(200);
   }
+
+
   /* USER CODE END StartTofTask */
 }
 

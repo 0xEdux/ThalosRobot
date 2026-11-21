@@ -17,6 +17,6 @@
 ../Core/Src/main.c:909:6:StartTelemetryTask	9
 ../Core/Src/main.c:955:6:StartProcessTracking1	1
 ../Core/Src/main.c:970:6:StartProcessTracking2	1
-../Core/Src/main.c:985:6:StartTofTask	14
-../Core/Src/main.c:1111:6:HAL_TIM_PeriodElapsedCallback	2
-../Core/Src/main.c:1129:6:Error_Handler	1
+../Core/Src/main.c:985:6:StartTofTask	6
+../Core/Src/main.c:1054:6:HAL_TIM_PeriodElapsedCallback	2
+../Core/Src/main.c:1072:6:Error_Handler	1
