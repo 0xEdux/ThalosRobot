@@ -1,8 +1,8 @@
-#include "amg88XX.h"
+#include "amg88xx.h"
 #include <stddef.h>
 
-// la matriz termia usa registros de 8 bits
-// leemos sus 128 bytes de temperatura en una sola transf.
+// La matriz termica usa registros de 8 bits.
+// Leemos los 128 bytes de temperatura en una sola transferencia.
 
 static int AMG88XX_IsValid(const AMG88XX_t *sensor){
     return sensor != NULL && sensor->i2c != NULL &&

@@ -79,7 +79,6 @@ typedef struct {
 /* Private variables ---------------------------------------------------------*/
 
 I2C_HandleTypeDef hi2c1;
-I2C_HandleTypeDef hi2c4;
 
 TIM_HandleTypeDef htim2;
 
@@ -186,7 +185,6 @@ static void MX_TIM2_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_UART4_Init(void);
 static void MX_I2C1_Init(void);
-static void MX_I2C4_Init(void);
 void StartMotionTask(void *argument);
 void StartHeartbeathTask(void *argument);
 void StartTelemetryTask(void *argument);
@@ -336,7 +334,6 @@ Error_Handler();
   MX_USART2_UART_Init();
   MX_UART4_Init();
   MX_I2C1_Init();
-  MX_I2C4_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -528,54 +525,6 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
-
-}
-
-/**
-  * @brief I2C4 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2C4_Init(void)
-{
-
-  /* USER CODE BEGIN I2C4_Init 0 */
-
-  /* USER CODE END I2C4_Init 0 */
-
-  /* USER CODE BEGIN I2C4_Init 1 */
-
-  /* USER CODE END I2C4_Init 1 */
-  hi2c4.Instance = I2C4;
-  hi2c4.Init.Timing = 0x00707CBB;
-  hi2c4.Init.OwnAddress1 = 0;
-  hi2c4.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c4.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c4.Init.OwnAddress2 = 0;
-  hi2c4.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hi2c4.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c4.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Analogue filter
-  */
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c4, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Digital filter
-  */
-  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c4, 0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2C4_Init 2 */
-
-  /* USER CODE END I2C4_Init 2 */
 
 }
 
@@ -822,7 +771,6 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
@@ -1155,16 +1103,14 @@ void StartTofTask(void *argument)
         snprintf(message, sizeof(message),
                 "VL %s: %u mm\r\n",
                 name[i], (unsigned int)result.distance_mm);
-      } else {
+        UART_Print(message);
+      } else if (status != HAL_OK) {
         snprintf(message, sizeof(message),
-                "VL %s: HAL=%u rango=%u ERR=0x%08lX SCL=%u SDA=%u\r\n",
+                "VL %s: fallo de lectura HAL=%u ERR=0x%08lX\r\n",
                 name[i], (unsigned int)status,
-                (unsigned int)result.range_status,
-                (unsigned long)HAL_I2C_GetError(&hi2c1),
-                (unsigned int)HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8),
-                (unsigned int)HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_9));
+                (unsigned long)HAL_I2C_GetError(&hi2c1));
+        UART_Print(message);
       }
-      UART_Print(message);
     }
 
     osDelay(200);
@@ -1187,8 +1133,8 @@ void StartThermalTask(void *argument)
   (void)argument;
 
   const AMG88XX_t thermal = {
-    &hi2c4,
-    i2c4MutexHandle,
+    &hi2c1,
+    i2c1MutexHandle,
     AMG88XX_DEFAULT_ADDRESS
   };
 
@@ -1198,28 +1144,6 @@ void StartThermalTask(void *argument)
   while (AMG88XX_Init(&thermal) != HAL_OK) {
     UART_Print("AMG8831: no se pudo iniciar\r\n");
     osDelay(1000U);
-  }
-
-  uint8_t power_mode = 0xFFU;
-  uint8_t frame_rate = 0xFFU;
-  char startup_message[128];
-
-  if (osMutexAcquire(i2c4MutexHandle, osWaitForever) == osOK) {
-    HAL_StatusTypeDef power_status = HAL_I2C_Mem_Read(
-        &hi2c4, (uint16_t)(thermal.address_7bit << 1),
-        0x00U, I2C_MEMADD_SIZE_8BIT, &power_mode, 1U, 50U);
-
-    HAL_StatusTypeDef fps_status = HAL_I2C_Mem_Read(
-        &hi2c4, (uint16_t)(thermal.address_7bit << 1),
-        0x02U, I2C_MEMADD_SIZE_8BIT, &frame_rate, 1U, 50U);
-
-    osMutexRelease(i2c4MutexHandle);
-
-    snprintf(startup_message, sizeof(startup_message),
-            "AMG control: PCTL=0x%02X HAL=%u FPS=0x%02X HAL=%u\r\n",
-            (unsigned int)power_mode, (unsigned int)power_status,
-            (unsigned int)frame_rate, (unsigned int)fps_status);
-    UART_Print(startup_message);
   }
 
   for (;;) {

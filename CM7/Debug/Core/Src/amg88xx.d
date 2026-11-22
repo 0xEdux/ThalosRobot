@@ -1,4 +1,4 @@
-Core/Src/amg88xx.o: ../Core/Src/amg88xx.c ../Core/Inc/amg88XX.h \
+Core/Src/amg88xx.o: ../Core/Src/amg88xx.c ../Core/Inc/amg88xx.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h \
  ../Core/Inc/stm32h7xx_hal_conf.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_rcc.h \
@@ -33,7 +33,7 @@ Core/Src/amg88xx.o: ../Core/Src/amg88xx.c ../Core/Inc/amg88XX.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h \
  ../../Drivers/CMSIS/RTOS2/Include/cmsis_os2.h
-../Core/Inc/amg88XX.h:
+../Core/Inc/amg88xx.h:
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h:
 ../Core/Inc/stm32h7xx_hal_conf.h:
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_rcc.h:
