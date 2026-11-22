@@ -79,6 +79,7 @@ typedef struct {
 /* Private variables ---------------------------------------------------------*/
 
 I2C_HandleTypeDef hi2c1;
+I2C_HandleTypeDef hi2c4;
 
 TIM_HandleTypeDef htim2;
 
@@ -152,6 +153,11 @@ osMutexId_t i2c1MutexHandle;
 const osMutexAttr_t i2c1Mutex_attributes = {
   .name = "i2c1Mutex"
 };
+/* Definitions for i2c4Mutex */
+osMutexId_t i2c4MutexHandle;
+const osMutexAttr_t i2c4Mutex_attributes = {
+  .name = "i2c4Mutex"
+};
 /* Definitions for ldRxSem1 */
 osSemaphoreId_t ldRxSem1Handle;
 const osSemaphoreAttr_t ldRxSem1_attributes = {
@@ -180,6 +186,7 @@ static void MX_TIM2_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_UART4_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_I2C4_Init(void);
 void StartMotionTask(void *argument);
 void StartHeartbeathTask(void *argument);
 void StartTelemetryTask(void *argument);
@@ -329,6 +336,7 @@ Error_Handler();
   MX_USART2_UART_Init();
   MX_UART4_Init();
   MX_I2C1_Init();
+  MX_I2C4_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -341,6 +349,9 @@ Error_Handler();
 
   /* creation of i2c1Mutex */
   i2c1MutexHandle = osMutexNew(&i2c1Mutex_attributes);
+
+  /* creation of i2c4Mutex */
+  i2c4MutexHandle = osMutexNew(&i2c4Mutex_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -464,7 +475,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV1;
-  RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV1;
+  RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
   {
@@ -517,6 +528,54 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief I2C4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C4_Init(void)
+{
+
+  /* USER CODE BEGIN I2C4_Init 0 */
+
+  /* USER CODE END I2C4_Init 0 */
+
+  /* USER CODE BEGIN I2C4_Init 1 */
+
+  /* USER CODE END I2C4_Init 1 */
+  hi2c4.Instance = I2C4;
+  hi2c4.Init.Timing = 0x00707CBB;
+  hi2c4.Init.OwnAddress1 = 0;
+  hi2c4.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c4.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c4.Init.OwnAddress2 = 0;
+  hi2c4.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c4.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c4.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c4, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c4, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C4_Init 2 */
+
+  /* USER CODE END I2C4_Init 2 */
 
 }
 
@@ -763,6 +822,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
@@ -1029,18 +1089,61 @@ void StartTofTask(void *argument)
 
   char message[128];
 
-  // mantenemos apagados los tres antes de asignar direcciones
-  for(uint32_t i = 0; i < 3; ++i){
-    HAL_GPIO_WritePin(ports[i], pins[i], GPIO_PIN_RESET);
-  }
-  osDelay(5);
+  // Repetir el arranque completo si falla alguno de los tres VL.
+  for (;;) {
+    for (uint32_t i = 0; i < 3U; ++i) {
+      HAL_GPIO_WritePin(ports[i], pins[i], GPIO_PIN_RESET);
+      sensors[i].address_7bit = VL6180X_DEFAULT_ADDRESS;
+    }
+    osDelay(10U);
 
-  for(uint32_t i = 0; i < 3; ++i){
-    HAL_GPIO_WritePin(ports[i], pins[i], GPIO_PIN_SET);
-    osDelay(10);
+    if (osMutexAcquire(i2c1MutexHandle, osWaitForever) != osOK) {
+      UART_Print("VL: no se pudo tomar el mutex de I2C1\r\n");
+      osDelay(1000U);
+      continue;
+    }
 
-    VL6180X_SetAddress(&sensors[i], addresses[i]);
-    VL6180X_Init(&sensors[i]);
+    HAL_I2C_DeInit(&hi2c1);
+    __HAL_RCC_I2C1_FORCE_RESET();
+    __HAL_RCC_I2C1_RELEASE_RESET();
+    MX_I2C1_Init();
+    osMutexRelease(i2c1MutexHandle);
+
+    uint8_t initialized = 1U;
+
+    for (uint32_t i = 0; i < 3U; ++i) {
+      HAL_GPIO_WritePin(ports[i], pins[i], GPIO_PIN_SET);
+      osDelay(10U);
+
+      const char *step = "direccion";
+      HAL_StatusTypeDef status =
+          VL6180X_SetAddress(&sensors[i], addresses[i]);
+
+      if (status == HAL_OK) {
+        step = "inicializar";
+        status = VL6180X_Init(&sensors[i]);
+      }
+
+      if (status != HAL_OK) {
+        snprintf(message, sizeof(message),
+                 "VL %s: fallo en %s HAL=%u ERR=0x%08lX; reintentando\r\n",
+                 name[i], step, (unsigned int)status,
+                 (unsigned long)HAL_I2C_GetError(&hi2c1));
+        UART_Print(message);
+        initialized = 0U;
+        break;
+      }
+    }
+
+    if (initialized != 0U) {
+      UART_Print("VL: los tres sensores inicializados\r\n");
+      break;
+    }
+
+    for (uint32_t i = 0; i < 3U; ++i) {
+      HAL_GPIO_WritePin(ports[i], pins[i], GPIO_PIN_RESET);
+    }
+    osDelay(1000U);
   }
 
   for(;;){
@@ -1048,14 +1151,20 @@ void StartTofTask(void *argument)
       VL6180X_Range_t result;
       HAL_StatusTypeDef status = VL6180X_ReadRange(&sensors[i], &result);
 
-      if(status == HAL_OK && result.range_status == 0){
+      if (status == HAL_OK && result.range_status == 0U) {
         snprintf(message, sizeof(message),
-          "VL %s: %u mm\r\n",
-          name[i],
-          (unsigned int)result.distance_mm);
-
-        UART_Print(message);
+                "VL %s: %u mm\r\n",
+                name[i], (unsigned int)result.distance_mm);
+      } else {
+        snprintf(message, sizeof(message),
+                "VL %s: HAL=%u rango=%u ERR=0x%08lX SCL=%u SDA=%u\r\n",
+                name[i], (unsigned int)status,
+                (unsigned int)result.range_status,
+                (unsigned long)HAL_I2C_GetError(&hi2c1),
+                (unsigned int)HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8),
+                (unsigned int)HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_9));
       }
+      UART_Print(message);
     }
 
     osDelay(200);
@@ -1078,8 +1187,8 @@ void StartThermalTask(void *argument)
   (void)argument;
 
   const AMG88XX_t thermal = {
-    &hi2c1,
-    i2c1MutexHandle,
+    &hi2c4,
+    i2c4MutexHandle,
     AMG88XX_DEFAULT_ADDRESS
   };
 
@@ -1089,6 +1198,28 @@ void StartThermalTask(void *argument)
   while (AMG88XX_Init(&thermal) != HAL_OK) {
     UART_Print("AMG8831: no se pudo iniciar\r\n");
     osDelay(1000U);
+  }
+
+  uint8_t power_mode = 0xFFU;
+  uint8_t frame_rate = 0xFFU;
+  char startup_message[128];
+
+  if (osMutexAcquire(i2c4MutexHandle, osWaitForever) == osOK) {
+    HAL_StatusTypeDef power_status = HAL_I2C_Mem_Read(
+        &hi2c4, (uint16_t)(thermal.address_7bit << 1),
+        0x00U, I2C_MEMADD_SIZE_8BIT, &power_mode, 1U, 50U);
+
+    HAL_StatusTypeDef fps_status = HAL_I2C_Mem_Read(
+        &hi2c4, (uint16_t)(thermal.address_7bit << 1),
+        0x02U, I2C_MEMADD_SIZE_8BIT, &frame_rate, 1U, 50U);
+
+    osMutexRelease(i2c4MutexHandle);
+
+    snprintf(startup_message, sizeof(startup_message),
+            "AMG control: PCTL=0x%02X HAL=%u FPS=0x%02X HAL=%u\r\n",
+            (unsigned int)power_mode, (unsigned int)power_status,
+            (unsigned int)frame_rate, (unsigned int)fps_status);
+    UART_Print(startup_message);
   }
 
   for (;;) {
