@@ -1,7 +1,7 @@
-../Core/Src/vl6180x.c:7:12:VL6180X_IsValid	16	static
-../Core/Src/vl6180x.c:13:26:VL6180X_Read	48	static
-../Core/Src/vl6180x.c:33:26:VL6180X_Write	40	static
-../Core/Src/vl6180x.c:53:26:VL6180X_Wait	24	static
-../Core/Src/vl6180x.c:76:19:VL6180X_SetAddress	24	static
-../Core/Src/vl6180x.c:91:19:VL6180X_Init	24	static
-../Core/Src/vl6180x.c:134:19:VL6180X_ReadRange	24	static
+../Core/Src/vl6180x.c:9:12:VL6180X_IsValid	16	static
+../Core/Src/vl6180x.c:15:26:VL6180X_Read	48	static
+../Core/Src/vl6180x.c:35:26:VL6180X_Write	40	static
+../Core/Src/vl6180x.c:55:26:VL6180X_Wait	24	static
+../Core/Src/vl6180x.c:78:19:VL6180X_SetAddress	24	static
+../Core/Src/vl6180x.c:93:19:VL6180X_Init	24	static
+../Core/Src/vl6180x.c:136:19:VL6180X_ReadRange	24	static

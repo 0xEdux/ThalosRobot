@@ -153,11 +153,6 @@ osMutexId_t i2c1MutexHandle;
 const osMutexAttr_t i2c1Mutex_attributes = {
   .name = "i2c1Mutex"
 };
-/* Definitions for i2c4Mutex */
-osMutexId_t i2c4MutexHandle;
-const osMutexAttr_t i2c4Mutex_attributes = {
-  .name = "i2c4Mutex"
-};
 /* Definitions for ldRxSem1 */
 osSemaphoreId_t ldRxSem1Handle;
 const osSemaphoreAttr_t ldRxSem1_attributes = {
@@ -349,9 +344,6 @@ Error_Handler();
 
   /* creation of i2c1Mutex */
   i2c1MutexHandle = osMutexNew(&i2c1Mutex_attributes);
-
-  /* creation of i2c4Mutex */
-  i2c4MutexHandle = osMutexNew(&i2c4Mutex_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -1090,15 +1082,16 @@ void StartTofTask(void *argument)
 
   // Repetir el arranque completo si falla alguno de los tres VL.
   for (;;) {
-    for (uint32_t i = 0; i < 3U; ++i) {
+    for (uint32_t i = 0; i < 3; ++i) {
       HAL_GPIO_WritePin(ports[i], pins[i], GPIO_PIN_RESET);
       sensors[i].address_7bit = VL6180X_DEFAULT_ADDRESS;
     }
-    osDelay(10U);
-
-    if (osMutexAcquire(i2c1MutexHandle, osWaitForever) != osOK) {
-      UART_Print("VL: no se pudo tomar el mutex de I2C1\r\n");
-      osDelay(1000U);
+    osDelay(10);
+    
+    // el mutex hace que una sola tarea utilice el
+    //  periferico I2C1 durante cada transferencia
+    if(osMutexAcquire(i2c1MutexHandle, osWaitForever) != osOK){
+      osDelay(1000);
       continue;
     }
 
@@ -1106,6 +1099,7 @@ void StartTofTask(void *argument)
     __HAL_RCC_I2C1_FORCE_RESET();
     __HAL_RCC_I2C1_RELEASE_RESET();
     MX_I2C1_Init();
+
     osMutexRelease(i2c1MutexHandle);
 
     uint8_t initialized = 1U;
@@ -1114,27 +1108,22 @@ void StartTofTask(void *argument)
       HAL_GPIO_WritePin(ports[i], pins[i], GPIO_PIN_SET);
       osDelay(10U);
 
-      const char *step = "direccion";
-      HAL_StatusTypeDef status =
-          VL6180X_SetAddress(&sensors[i], addresses[i]);
+      HAL_StatusTypeDef status = VL6180X_SetAddress(&sensors[i], addresses[i]);
 
       if (status == HAL_OK) {
-        step = "inicializar";
         status = VL6180X_Init(&sensors[i]);
       }
 
       if (status != HAL_OK) {
         snprintf(message, sizeof(message),
-                 "VL %s: fallo en %s HAL=%u ERR=0x%08lX; reintentando\r\n",
-                 name[i], step, (unsigned int)status,
-                 (unsigned long)HAL_I2C_GetError(&hi2c1));
+          "VL %s: fallo, reintentando\r\n", name[i]);
         UART_Print(message);
-        initialized = 0U;
+        initialized = 0;
         break;
       }
     }
 
-    if (initialized != 0U) {
+    if (initialized != 0) {
       UART_Print("VL: los tres sensores inicializados\r\n");
       break;
     }
@@ -1142,7 +1131,7 @@ void StartTofTask(void *argument)
     for (uint32_t i = 0; i < 3U; ++i) {
       HAL_GPIO_WritePin(ports[i], pins[i], GPIO_PIN_RESET);
     }
-    osDelay(1000U);
+    osDelay(1000);
   }
 
   for(;;){
@@ -1152,14 +1141,15 @@ void StartTofTask(void *argument)
 
       if (status == HAL_OK && result.range_status == 0U) {
         snprintf(message, sizeof(message),
-                "VL %s: %u mm\r\n",
-                name[i], (unsigned int)result.distance_mm);
+          "VL %s: %u mm\r\n",
+          name[i], (unsigned int)result.distance_mm);
         UART_Print(message);
+
       } else if (status != HAL_OK) {
         snprintf(message, sizeof(message),
-                "VL %s: fallo de lectura HAL=%u ERR=0x%08lX\r\n",
-                name[i], (unsigned int)status,
-                (unsigned long)HAL_I2C_GetError(&hi2c1));
+            "VL %s: fallo HAL=%u ERR=0x%08lX\r\n",
+            name[i], (unsigned int)status,
+            (unsigned long)HAL_I2C_GetError(&hi2c1));
         UART_Print(message);
       }
     }
@@ -1208,22 +1198,17 @@ void StartThermalTask(void *argument)
           int32_t magnitude = value < 0 ? -value : value;
 
           used += (size_t)snprintf(
-              message + used,
-              sizeof(message) - used,
-              "%s%ld.%02ld ",
-              value < 0 ? "-" : "",
-              (long)(magnitude / 100),
-              (long)(magnitude % 100));
+            message + used, sizeof(message) - used,
+            "%s%ld.%02ld ", value < 0 ? "-" : "",
+            (long)(magnitude / 100), (long)(magnitude % 100));
         }
 
-        used += (size_t)snprintf(
-            message + used,
-            sizeof(message) - used,
-            "\r\n");
+        used += (size_t)snprintf( message + used, sizeof(message) - used, "\r\n");
       }
 
       UART_Print(message);
-
+      
+      // lo que se manda a la ESP32
       if(HAL_UART_Transmit(&huart5, (const uint8_t *)message, (uint16_t)strlen(message),200) != HAL_OK){
         UART_Print("UART5: fallo al enviar matriz termina\r\n");
       }

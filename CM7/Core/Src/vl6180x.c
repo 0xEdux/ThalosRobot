@@ -2,6 +2,8 @@
 #include <stddef.h>
 #include "cmsis_os2.h"
 
+// Los VL6180 usan direccion de registro de 16 bits
+
 extern osMutexId_t i2c1MutexHandle;
 
 static int VL6180X_IsValid(const VL6180X_t *sensor){

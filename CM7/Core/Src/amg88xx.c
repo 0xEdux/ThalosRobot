@@ -93,6 +93,9 @@ HAL_StatusTypeDef AMG88XX_Init(const AMG88XX_t *sensor){
     return HAL_OK;
 }
 
+// Cada pixel ocupa 2 bytes
+// la matriz es de 8 x 8 pixeles
+// 64 pixeles x 2 bytes = 128 bytes
 HAL_StatusTypeDef AMG88XX_ReadPixels(
     const AMG88XX_t *sensor,
     int32_t temperatures[AMG88XX_PIXEL_COUNT]
