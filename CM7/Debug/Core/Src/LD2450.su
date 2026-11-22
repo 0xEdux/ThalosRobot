@@ -1,6 +1,7 @@
 ../Core/Src/LD2450.c:11:9:LD2450_Decode	24	static
-../Core/Src/LD2450.c:18:19:LD2450_Feed	88	static
-../Core/Src/LD2450.c:83:19:LD2450_Process	40	static,ignoring_inline_asm
-../Core/Src/LD2450.c:121:19:LD2450_Init	48	static,ignoring_inline_asm
-../Core/Src/LD2450.c:157:19:LD2450_RxEventCb	24	static
-../Core/Src/LD2450.c:171:19:LD2450_ErrorCb	16	static
+../Core/Src/LD2450.c:18:19:LD2450_Feed	104	static
+../Core/Src/LD2450.c:85:19:LD2450_Process	40	static,ignoring_inline_asm
+../Core/Src/LD2450.c:123:19:LD2450_Init	48	static,ignoring_inline_asm
+../Core/Src/LD2450.c:159:19:LD2450_RxEventCb	24	static
+../Core/Src/LD2450.c:173:19:LD2450_ErrorCb	16	static
+../Core/Src/LD2450.c:187:5:target_valid	16	static

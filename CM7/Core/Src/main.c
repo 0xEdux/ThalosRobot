@@ -67,9 +67,9 @@ typedef struct {
 
 #define T_HEARTBEAT_MS      250U      // Cambio de estado del LED verde (Task Heartbeat)
 
-#define DISTANCE_T   600   // mm entre radares
+#define DISTANCE_T   45   // mm entre radares
 #define MAX_AGE_MS   150   // un frame más viejo se descarta
-#define GATE_MM      400   // distancia máxima para considerar el mismo blanco
+#define GATE_MM      300   // distancia máxima para considerar el mismo blanco
 
 /* DUAL_CORE_BOOT_SYNC_SEQUENCE: Define for dual core boot synchronization    */
 /*                             demonstration code based on hardware semaphore */
@@ -391,7 +391,7 @@ Error_Handler();
   trackingQueueHandle = osMessageQueueNew (6, sizeof(LD2450_Msg_t), &trackingQueue_attributes);
 
   /* creation of fusedQueue */
-  fusedQueueHandle = osMessageQueueNew (8, sizeof(uint16_t), &fusedQueue_attributes);
+  fusedQueueHandle = osMessageQueueNew (8, sizeof(Fused_Msg_t), &fusedQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -897,28 +897,25 @@ void StartTelemetryTask(void *argument)
   /* USER CODE BEGIN StartTelemetryTask */
   /* Infinite loop */
 
-  LD2450_Msg_t m;
+  Fused_Msg_t m;
   char line[160];
   for(;;)
   {
-    osStatus_t status = osMessageQueueGet(trackingQueueHandle, &m, NULL, 200);
+    osStatus_t status = osMessageQueueGet(fusedQueueHandle, &m, NULL, 200);
     if (status == osOK) {
       size_t n = 0;
 
-      for (int i = 0; i < 3; i++) {
-        const LD2450_Target_t *t = &m.frame.t[i];
-
-        // Sin blanco
-        if (t->x == 0 && t->y == 0 && t->speed == 0 && t->res == 0) continue;
+      for (int i = 0; i < m.count; i++) {
+        const Fused_Target_t *t = &m.t[i];
 
         n += snprintf(line + n, sizeof(line) - n,
-                      "R%u T%d x=%d y=%d v=%d res=%u | ", m.id,
-                      i + 1, t->x, t->y, t->speed, (unsigned)t->res);
+                      "T%d x=%d y=%d v=%d src=%u | ",
+                      i + 1, t->x, t->y, t->speed, (unsigned)t->src);
         if (n >= sizeof(line) - 3) break;
       }
 
       if (n == 0) {
-        snprintf(line, sizeof(line), "R%u sin blancos\r\n", m.id);
+        snprintf(line, sizeof(line), "sin blancos\r\n");
       } else {
         n -= 3;
         snprintf(line + n, sizeof(line) - n, "\r\n");
@@ -975,39 +972,34 @@ void StartFusionLD(void *argument)
 
 
   LD2450_Msg_t m;
-  LD2450_Msg_t latest_data[2];
+  LD2450_Msg_t latest[2];
 
   // Bandera para verificar data inicial
-  uint8_t have_data[2] = {0, 0};
+  uint8_t have[2] = {0, 0};
 
-  for(;;)
+  for (;;)
   {
     osStatus_t status = osMessageQueueGet(trackingQueueHandle, &m, NULL, 200);
+    if (status != osOK) continue;
+    if (m.id < 1 || m.id > 2) continue;
 
-    if(status != osOK) continue;
-    if(m.id < 1 || m.id < 2) continue;
-
-    latest_data[m.id - 1] = m;
-    have_data[m.id - 1] = 1;
+    latest[m.id - 1] = m;
+    have[m.id - 1] = 1;
 
     uint32_t now = osKernelGetTickCount();
-    uint8_t fresh_data[2];
-
+    uint8_t fresh[2];
     for (int r = 0; r < 2; r++) {
-      fresh_data[r] = have_data[r] && ((now - latest_data[r].timestamp) < MAX_AGE_MS);
+      fresh[r] = have[r] && ((now - latest[r].timestamp) < MAX_AGE_MS);
     }
 
-    LD2450_Target_t a[3], b[3];
-    uint8_t na = fresh_data[0] ? collect(&latest_data[0], -(DISTANCE_T / 2), a) : 0;
-    uint8_t nb = fresh_data[1] ? collect(&latest_data[1],  (DISTANCE_T / 2), b) : 0;
+    Fused_Target_t a[3], b[3];
+    uint8_t na = fresh[0] ? normalize(&latest[0], -(DISTANCE_T / 2), 0x01, a) : 0;
+    uint8_t nb = fresh[1] ? normalize(&latest[1],  (DISTANCE_T / 2), 0x02, b) : 0;
     uint8_t used_b[3] = {0, 0, 0};
 
-    LD2450_Msg_t out;
-    memset(&out, 0, sizeof(out));   // los slots vacíos quedan en (0,0,0,0)
-    out.id = 0;                     // 0 = fusionado
-    out.timestamp = now;
-    uint8_t count = 0;
+    Fused_Msg_t out = { .timestamp = now, .count = 0 };
 
+    // Cada blanco de R1: buscar el más cercano de R2
     for (int i = 0; i < na; i++) {
       int best = -1;
       int32_t best_d2 = (int32_t)GATE_MM * GATE_MM;
@@ -1020,21 +1012,21 @@ void StartFusionLD(void *argument)
         if (d2 < best_d2) { best_d2 = d2; best = j; }
       }
 
+      Fused_Target_t *o = &out.t[out.count++];
       if (best >= 0) {
         used_b[best] = 1;
-        LD2450_Target_t f = a[i];
-        f.x     = (a[i].x + b[best].x) / 2;
-        f.y     = (a[i].y + b[best].y) / 2;
-        f.speed = (a[i].speed + b[best].speed) / 2;
-        f.res   = 0;
-        push(&out, &count, &f);
+        o->x     = (a[i].x + b[best].x) / 2;
+        o->y     = (a[i].y + b[best].y) / 2;
+        o->speed = (a[i].speed + b[best].speed) / 2;
+        o->src   = 0x03;
       } else {
-        push(&out, &count, &a[i]);
+        *o = a[i];
       }
     }
 
+    // Los de R2 que no se asociaron pasan solos
     for (int j = 0; j < nb; j++) {
-      if (!used_b[j]) push(&out, &count, &b[j]);
+      if (!used_b[j]) out.t[out.count++] = b[j];
     }
 
     osMessageQueuePut(fusedQueueHandle, &out, 0, 0);

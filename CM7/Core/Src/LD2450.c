@@ -56,7 +56,7 @@ HAL_StatusTypeDef LD2450_Feed(LD2450_Handle_t *radar, uint8_t value) {
             radar->targets.t[i].res =  p[7] << 8 | p[6];
           }
 
-          int ticks = xTaskGetTickCount()
+          uint32_t ticks = osKernelGetTickCount();
 
           LD2450_Msg_t msg = { .id = radar->id, .frame = radar->targets, .timestamp = ticks };
 

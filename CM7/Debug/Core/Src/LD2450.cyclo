@@ -1,6 +1,7 @@
 ../Core/Src/LD2450.c:11:9:LD2450_Decode	2
 ../Core/Src/LD2450.c:18:19:LD2450_Feed	23
-../Core/Src/LD2450.c:83:19:LD2450_Process	8
-../Core/Src/LD2450.c:121:19:LD2450_Init	7
-../Core/Src/LD2450.c:157:19:LD2450_RxEventCb	5
-../Core/Src/LD2450.c:171:19:LD2450_ErrorCb	5
+../Core/Src/LD2450.c:85:19:LD2450_Process	8
+../Core/Src/LD2450.c:123:19:LD2450_Init	7
+../Core/Src/LD2450.c:159:19:LD2450_RxEventCb	5
+../Core/Src/LD2450.c:173:19:LD2450_ErrorCb	5
+../Core/Src/LD2450.c:187:5:target_valid	5

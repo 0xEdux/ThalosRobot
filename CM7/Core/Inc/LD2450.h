@@ -29,7 +29,7 @@ typedef struct { LD2450_Target_t t[3]; } LD2450_Frame_t;
 typedef struct {
     uint8_t         id;
     LD2450_Frame_t  frame;
-    int             timestamp;
+    uint32_t             timestamp;
 } LD2450_Msg_t;
 
 typedef struct {
