@@ -7902,7 +7902,7 @@ LOAD /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.id
 .iplt           0x08011c10        0x0
  .iplt          0x08011c10        0x0 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v7e-m+dp/hard/crtbegin.o
 
-.rodata         0x08011c10      0x428
+.rodata         0x08011c10      0x424
                 0x08011c10                        . = ALIGN (0x4)
  *(.rodata)
  .rodata        0x08011c10       0x38 ./Core/Src/main.o
@@ -7917,120 +7917,120 @@ LOAD /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.id
  .rodata.settings.0
                 0x08011c70       0x1c ./Core/Src/amg88xx.o
  .rodata.str1.4
-                0x08011c8c      0x159 ./Core/Src/main.o
+                0x08011c8c      0x155 ./Core/Src/main.o
                                  0xa1 (size before relaxing)
- *fill*         0x08011de5        0x3 
+ *fill*         0x08011de1        0x3 
  .rodata.motionTask_attributes
-                0x08011de8       0x24 ./Core/Src/main.o
-                0x08011de8                motionTask_attributes
+                0x08011de4       0x24 ./Core/Src/main.o
+                0x08011de4                motionTask_attributes
  .rodata.heartbeatTask_attributes
-                0x08011e0c       0x24 ./Core/Src/main.o
-                0x08011e0c                heartbeatTask_attributes
+                0x08011e08       0x24 ./Core/Src/main.o
+                0x08011e08                heartbeatTask_attributes
  .rodata.telemetryTask_attributes
-                0x08011e30       0x24 ./Core/Src/main.o
-                0x08011e30                telemetryTask_attributes
+                0x08011e2c       0x24 ./Core/Src/main.o
+                0x08011e2c                telemetryTask_attributes
  .rodata.process1Trackin_attributes
-                0x08011e54       0x24 ./Core/Src/main.o
-                0x08011e54                process1Trackin_attributes
+                0x08011e50       0x24 ./Core/Src/main.o
+                0x08011e50                process1Trackin_attributes
  .rodata.process2Trackin_attributes
-                0x08011e78       0x24 ./Core/Src/main.o
-                0x08011e78                process2Trackin_attributes
+                0x08011e74       0x24 ./Core/Src/main.o
+                0x08011e74                process2Trackin_attributes
  .rodata.tofTask_attributes
-                0x08011e9c       0x24 ./Core/Src/main.o
-                0x08011e9c                tofTask_attributes
+                0x08011e98       0x24 ./Core/Src/main.o
+                0x08011e98                tofTask_attributes
  .rodata.thermalTask_attributes
-                0x08011ec0       0x24 ./Core/Src/main.o
-                0x08011ec0                thermalTask_attributes
+                0x08011ebc       0x24 ./Core/Src/main.o
+                0x08011ebc                thermalTask_attributes
  .rodata.trackingQueue_attributes
-                0x08011ee4       0x18 ./Core/Src/main.o
-                0x08011ee4                trackingQueue_attributes
+                0x08011ee0       0x18 ./Core/Src/main.o
+                0x08011ee0                trackingQueue_attributes
  .rodata.telemetryMutex_attributes
-                0x08011efc       0x10 ./Core/Src/main.o
-                0x08011efc                telemetryMutex_attributes
+                0x08011ef8       0x10 ./Core/Src/main.o
+                0x08011ef8                telemetryMutex_attributes
  .rodata.i2c1Mutex_attributes
-                0x08011f0c       0x10 ./Core/Src/main.o
-                0x08011f0c                i2c1Mutex_attributes
+                0x08011f08       0x10 ./Core/Src/main.o
+                0x08011f08                i2c1Mutex_attributes
  .rodata.ldRxSem1_attributes
-                0x08011f1c       0x10 ./Core/Src/main.o
-                0x08011f1c                ldRxSem1_attributes
+                0x08011f18       0x10 ./Core/Src/main.o
+                0x08011f18                ldRxSem1_attributes
  .rodata.ldRxSem2_attributes
-                0x08011f2c       0x10 ./Core/Src/main.o
-                0x08011f2c                ldRxSem2_attributes
+                0x08011f28       0x10 ./Core/Src/main.o
+                0x08011f28                ldRxSem2_attributes
  .rodata.StartTelemetryTask.str1.4
-                0x08011f3c       0x3b ./Core/Src/main.o
+                0x08011f38       0x3b ./Core/Src/main.o
  .rodata.StartTofTask.str1.4
-                0x08011f3c       0x30 ./Core/Src/main.o
+                0x08011f38       0x30 ./Core/Src/main.o
  .rodata.StartThermalTask.str1.4
-                0x08011f3c       0x51 ./Core/Src/main.o
+                0x08011f38       0x4d ./Core/Src/main.o
  .rodata.settings.0
-                0x08011f3c       0x94 ./Core/Src/vl6180x.o
+                0x08011f38       0x94 ./Core/Src/vl6180x.o
  .rodata.flagBitshiftOffset.0
-                0x08011fd0        0x8 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_dma.o
+                0x08011fcc        0x8 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_dma.o
  .rodata.UARTPrescTable
-                0x08011fd8       0x18 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_uart.o
-                0x08011fd8                UARTPrescTable
+                0x08011fd4       0x18 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_uart.o
+                0x08011fd4                UARTPrescTable
  .rodata.numerator.1
-                0x08011ff0        0x8 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_uart_ex.o
+                0x08011fec        0x8 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_uart_ex.o
  .rodata.denominator.0
-                0x08011ff8        0x8 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_uart_ex.o
+                0x08011ff4        0x8 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_uart_ex.o
  .rodata.uxTopUsedPriority
-                0x08012000        0x4 ./Middlewares/Third_Party/FreeRTOS/tasks.o
-                0x08012000                uxTopUsedPriority
+                0x08011ffc        0x4 ./Middlewares/Third_Party/FreeRTOS/tasks.o
+                0x08011ffc                uxTopUsedPriority
  .rodata._svfprintf_r.str1.1
-                0x08012004       0x33 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+dp/hard/libc_nano.a(libc_a-nano-svfprintf.o)
+                0x08012000       0x33 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+dp/hard/libc_nano.a(libc_a-nano-svfprintf.o)
                                  0x11 (size before relaxing)
  .rodata._printf_i.str1.1
-                0x08012037       0x22 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+dp/hard/libc_nano.a(libc_a-nano-vfprintf_i.o)
-                0x0801205c                        . = ALIGN (0x4)
- *fill*         0x08012037        0x1 
+                0x08012033       0x22 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+dp/hard/libc_nano.a(libc_a-nano-vfprintf_i.o)
+                0x08012058                        . = ALIGN (0x4)
+ *fill*         0x08012033        0x1 
 
-.ARM.extab      0x08012038        0x0
-                0x08012038                        . = ALIGN (0x4)
+.ARM.extab      0x08012034        0x0
+                0x08012034                        . = ALIGN (0x4)
  *(.ARM.extab* .gnu.linkonce.armextab.*)
-                0x08012038                        . = ALIGN (0x4)
+                0x08012034                        . = ALIGN (0x4)
 
-.ARM            0x08012038        0x8
-                0x08012038                        . = ALIGN (0x4)
-                0x08012038                        __exidx_start = .
+.ARM            0x08012034        0x8
+                0x08012034                        . = ALIGN (0x4)
+                0x08012034                        __exidx_start = .
  *(.ARM.exidx*)
- .ARM.exidx     0x08012038        0x8 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+dp/hard/libc_nano.a(libc_a-strlen.o)
- .ARM.exidx     0x08012040        0x0 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+dp/hard/libc_nano.a(libc_a-memchr.o)
+ .ARM.exidx     0x08012034        0x8 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+dp/hard/libc_nano.a(libc_a-strlen.o)
+ .ARM.exidx     0x0801203c        0x0 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+dp/hard/libc_nano.a(libc_a-memchr.o)
                                   0x8 (size before relaxing)
- .ARM.exidx     0x08012040        0x0 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v7e-m+dp/hard/libgcc.a(_udivmoddi4.o)
+ .ARM.exidx     0x0801203c        0x0 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v7e-m+dp/hard/libgcc.a(_udivmoddi4.o)
                                   0x8 (size before relaxing)
-                0x08012040                        __exidx_end = .
-                0x08012040                        . = ALIGN (0x4)
+                0x0801203c                        __exidx_end = .
+                0x0801203c                        . = ALIGN (0x4)
 
-.preinit_array  0x08012040        0x0
-                0x08012040                        . = ALIGN (0x4)
-                0x08012040                        PROVIDE (__preinit_array_start = .)
+.preinit_array  0x0801203c        0x0
+                0x0801203c                        . = ALIGN (0x4)
+                0x0801203c                        PROVIDE (__preinit_array_start = .)
  *(.preinit_array*)
-                0x08012040                        PROVIDE (__preinit_array_end = .)
-                0x08012040                        . = ALIGN (0x4)
+                0x0801203c                        PROVIDE (__preinit_array_end = .)
+                0x0801203c                        . = ALIGN (0x4)
 
-.init_array     0x08012040        0x4
-                0x08012040                        . = ALIGN (0x4)
-                0x08012040                        PROVIDE (__init_array_start = .)
+.init_array     0x0801203c        0x4
+                0x0801203c                        . = ALIGN (0x4)
+                0x0801203c                        PROVIDE (__init_array_start = .)
  *(SORT_BY_NAME(.init_array.*))
  *(.init_array*)
- .init_array    0x08012040        0x4 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v7e-m+dp/hard/crtbegin.o
-                0x08012044                        PROVIDE (__init_array_end = .)
-                0x08012044                        . = ALIGN (0x4)
+ .init_array    0x0801203c        0x4 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v7e-m+dp/hard/crtbegin.o
+                0x08012040                        PROVIDE (__init_array_end = .)
+                0x08012040                        . = ALIGN (0x4)
 
-.fini_array     0x08012044        0x4
-                0x08012044                        . = ALIGN (0x4)
+.fini_array     0x08012040        0x4
+                0x08012040                        . = ALIGN (0x4)
                 [!provide]                        PROVIDE (__fini_array_start = .)
  *(SORT_BY_NAME(.fini_array.*))
  *(.fini_array*)
- .fini_array    0x08012044        0x4 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v7e-m+dp/hard/crtbegin.o
+ .fini_array    0x08012040        0x4 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v7e-m+dp/hard/crtbegin.o
                 [!provide]                        PROVIDE (__fini_array_end = .)
-                0x08012048                        . = ALIGN (0x4)
-                0x08012048                        _sidata = LOADADDR (.data)
+                0x08012044                        . = ALIGN (0x4)
+                0x08012044                        _sidata = LOADADDR (.data)
 
-.rel.dyn        0x08012048        0x0
- .rel.iplt      0x08012048        0x0 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v7e-m+dp/hard/crtbegin.o
+.rel.dyn        0x08012044        0x0
+ .rel.iplt      0x08012044        0x0 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v7e-m+dp/hard/crtbegin.o
 
-.data           0x24000000       0x64 load address 0x08012048
+.data           0x24000000       0x64 load address 0x08012044
                 0x24000000                        . = ALIGN (0x4)
                 0x24000000                        _sdata = .
  *(.data)
@@ -8061,11 +8061,11 @@ LOAD /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.id
                 0x24000064                        . = ALIGN (0x4)
                 0x24000064                        _edata = .
 
-.igot.plt       0x24000064        0x0 load address 0x080120ac
+.igot.plt       0x24000064        0x0 load address 0x080120a8
  .igot.plt      0x24000064        0x0 /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.macosaarch64_1.0.0.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v7e-m+dp/hard/crtbegin.o
                 0x24000064                        . = ALIGN (0x4)
 
-.bss            0x24000080     0x5400 load address 0x080120ac
+.bss            0x24000080     0x5400 load address 0x080120a8
                 0x24000080                        _sbss = .
                 0x24000080                        __bss_start__ = _sbss
  *(.bss)
@@ -8249,7 +8249,7 @@ LOAD /Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/com.st.stm32cube.id
                 0x24005480                        __bss_end__ = _ebss
 
 ._user_heap_stack
-                0x24005480      0x600 load address 0x080120ac
+                0x24005480      0x600 load address 0x080120a8
                 0x24005480                        . = ALIGN (0x8)
                 [!provide]                        PROVIDE (end = .)
                 0x24005480                        PROVIDE (_end = .)

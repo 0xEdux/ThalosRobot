@@ -7,23 +7,23 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
   1 .text         00011970  080002a0  080002a0  000012a0  2**4
                   CONTENTS, ALLOC, LOAD, READONLY, CODE
-  2 .rodata       00000428  08011c10  08011c10  00012c10  2**2
+  2 .rodata       00000424  08011c10  08011c10  00012c10  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
-  3 .ARM.extab    00000000  08012038  08012038  00014064  2**0
+  3 .ARM.extab    00000000  08012034  08012034  00014064  2**0
                   CONTENTS, READONLY
-  4 .ARM          00000008  08012038  08012038  00013038  2**2
+  4 .ARM          00000008  08012034  08012034  00013034  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
-  5 .preinit_array 00000000  08012040  08012040  00014064  2**0
+  5 .preinit_array 00000000  0801203c  0801203c  00014064  2**0
                   CONTENTS, ALLOC, LOAD, DATA
-  6 .init_array   00000004  08012040  08012040  00013040  2**2
+  6 .init_array   00000004  0801203c  0801203c  0001303c  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
-  7 .fini_array   00000004  08012044  08012044  00013044  2**2
+  7 .fini_array   00000004  08012040  08012040  00013040  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
-  8 .data         00000064  24000000  08012048  00014000  2**2
+  8 .data         00000064  24000000  08012044  00014000  2**2
                   CONTENTS, ALLOC, LOAD, DATA
-  9 .bss          00005400  24000080  080120ac  00014080  2**5
+  9 .bss          00005400  24000080  080120a8  00014080  2**5
                   ALLOC
- 10 ._user_heap_stack 00000600  24005480  080120ac  00014480  2**0
+ 10 ._user_heap_stack 00000600  24005480  080120a8  00014480  2**0
                   ALLOC
  11 .ARM.attributes 0000002e  00000000  00000000  00014064  2**0
                   CONTENTS, READONLY
@@ -1864,9 +1864,9 @@ HAL_StatusTypeDef AMG88XX_Init(const AMG88XX_t *sensor){
     AMG88XX_DelayMs(60U);
  8000f60:	203c      	movs	r0, #60	@ 0x3c
  8000f62:	f7ff ff5b 	bl	8000e1c <AMG88XX_DelayMs>
-        {0x01, 0x30,  5},  // reiniciar banderas
-        {0x02, 0x00,  5},  // Sensor a 10 cuadros por segundo
-        {0x03, 0x00, 250}  // INT desactivado; esperar 2 cuadros
+        {0x01, 0x30,  5}, // reiniciar banderas
+        {0x02, 0x00,  5}, // Sensor a 10 cuadros por segundo
+        {0x03, 0x00, 250} // INT desactivado; esperar 2 cuadros
     };
 
     for(size_t i = 0; i < sizeof(settings) / sizeof(settings[0]); ++i){
@@ -2512,15 +2512,15 @@ int main(void)
  8001356:	bf00      	nop
  8001358:	e7fd      	b.n	8001356 <main+0x142>
  800135a:	bf00      	nop
- 800135c:	08011efc 	.word	0x08011efc
+ 800135c:	08011ef8 	.word	0x08011ef8
  8001360:	24000408 	.word	0x24000408
- 8001364:	08011f0c 	.word	0x08011f0c
+ 8001364:	08011f08 	.word	0x08011f08
  8001368:	2400040c 	.word	0x2400040c
- 800136c:	08011f1c 	.word	0x08011f1c
+ 800136c:	08011f18 	.word	0x08011f18
  8001370:	24000410 	.word	0x24000410
- 8001374:	08011f2c 	.word	0x08011f2c
+ 8001374:	08011f28 	.word	0x08011f28
  8001378:	24000414 	.word	0x24000414
- 800137c:	08011ee4 	.word	0x08011ee4
+ 800137c:	08011ee0 	.word	0x08011ee0
  8001380:	24000404 	.word	0x24000404
  8001384:	24000418 	.word	0x24000418
  8001388:	24000440 	.word	0x24000440
@@ -2528,25 +2528,25 @@ int main(void)
  8001390:	2400042c 	.word	0x2400042c
  8001394:	24000520 	.word	0x24000520
  8001398:	2400013c 	.word	0x2400013c
- 800139c:	08011de8 	.word	0x08011de8
+ 800139c:	08011de4 	.word	0x08011de4
  80013a0:	08001afd 	.word	0x08001afd
  80013a4:	240003e8 	.word	0x240003e8
- 80013a8:	08011e0c 	.word	0x08011e0c
+ 80013a8:	08011e08 	.word	0x08011e08
  80013ac:	08001b69 	.word	0x08001b69
  80013b0:	240003ec 	.word	0x240003ec
- 80013b4:	08011e30 	.word	0x08011e30
+ 80013b4:	08011e2c 	.word	0x08011e2c
  80013b8:	08001b89 	.word	0x08001b89
  80013bc:	240003f0 	.word	0x240003f0
- 80013c0:	08011e54 	.word	0x08011e54
+ 80013c0:	08011e50 	.word	0x08011e50
  80013c4:	08001cd1 	.word	0x08001cd1
  80013c8:	240003f4 	.word	0x240003f4
- 80013cc:	08011e78 	.word	0x08011e78
+ 80013cc:	08011e74 	.word	0x08011e74
  80013d0:	08001ced 	.word	0x08001ced
  80013d4:	240003f8 	.word	0x240003f8
- 80013d8:	08011e9c 	.word	0x08011e9c
+ 80013d8:	08011e98 	.word	0x08011e98
  80013dc:	08001d09 	.word	0x08001d09
  80013e0:	240003fc 	.word	0x240003fc
- 80013e4:	08011ec0 	.word	0x08011ec0
+ 80013e4:	08011ebc 	.word	0x08011ebc
  80013e8:	08001ea5 	.word	0x08001ea5
  80013ec:	24000400 	.word	0x24000400
 
@@ -4274,15 +4274,15 @@ void StartThermalTask(void *argument)
   int32_t temperatures[AMG88XX_PIXEL_COUNT];
   static char message[768];
 
-  while(AMG88XX_Init(&thermal) != HAL_OK){
+  while (AMG88XX_Init(&thermal) != HAL_OK) {
  8001ec8:	e006      	b.n	8001ed8 <StartThermalTask+0x34>
-    UART_Print("AMG8831: no se pudo iniciar C:\r\n");
+    UART_Print("AMG8831: no se pudo iniciar\r\n");
  8001eca:	4851      	ldr	r0, [pc, #324]	@ (8002010 <StartThermalTask+0x16c>)
  8001ecc:	f7ff f980 	bl	80011d0 <UART_Print>
-    osDelay(1000);
+    osDelay(1000U);
  8001ed0:	f44f 707a 	mov.w	r0, #1000	@ 0x3e8
  8001ed4:	f00b fa5e 	bl	800d394 <osDelay>
-  while(AMG88XX_Init(&thermal) != HAL_OK){
+  while (AMG88XX_Init(&thermal) != HAL_OK) {
  8001ed8:	f507 7384 	add.w	r3, r7, #264	@ 0x108
  8001edc:	4618      	mov	r0, r3
  8001ede:	f7ff f833 	bl	8000f48 <AMG88XX_Init>
@@ -4291,8 +4291,8 @@ void StartThermalTask(void *argument)
  8001ee6:	d1f0      	bne.n	8001eca <StartThermalTask+0x26>
   }
 
-  for(;;){
-    if(AMG88XX_ReadPixels(&thermal, temperatures) == HAL_OK){
+  for (;;) {
+    if (AMG88XX_ReadPixels(&thermal, temperatures) == HAL_OK) {
  8001ee8:	f107 0208 	add.w	r2, r7, #8
  8001eec:	f507 7384 	add.w	r3, r7, #264	@ 0x108
  8001ef0:	4611      	mov	r1, r2
@@ -4301,23 +4301,24 @@ void StartThermalTask(void *argument)
  8001ef8:	4603      	mov	r3, r0
  8001efa:	2b00      	cmp	r3, #0
  8001efc:	d17f      	bne.n	8001ffe <StartThermalTask+0x15a>
-      size_t used = (size_t)snprintf(message, sizeof(message), "AMG8831 - grados C:\r\n");
+      size_t used = (size_t)snprintf(
  8001efe:	4a45      	ldr	r2, [pc, #276]	@ (8002014 <StartThermalTask+0x170>)
  8001f00:	f44f 7140 	mov.w	r1, #768	@ 0x300
  8001f04:	4844      	ldr	r0, [pc, #272]	@ (8002018 <StartThermalTask+0x174>)
  8001f06:	f00f f95d 	bl	80111c4 <sniprintf>
  8001f0a:	4603      	mov	r3, r0
  8001f0c:	f8c7 3124 	str.w	r3, [r7, #292]	@ 0x124
+          message, sizeof(message), "AMG8831 - grados C:\r\n");
 
-      for(uint32_t row = 0; row < 8; ++row){
+      for (uint32_t row = 0; row < 8U; ++row) {
  8001f10:	2300      	movs	r3, #0
  8001f12:	f8c7 3120 	str.w	r3, [r7, #288]	@ 0x120
  8001f16:	e06b      	b.n	8001ff0 <StartThermalTask+0x14c>
-        for(uint32_t col = 0; col < 8; ++col){
+        for (uint32_t col = 0; col < 8U; ++col) {
  8001f18:	2300      	movs	r3, #0
  8001f1a:	f8c7 311c 	str.w	r3, [r7, #284]	@ 0x11c
  8001f1e:	e04b      	b.n	8001fb8 <StartThermalTask+0x114>
-          int32_t value = temperatures[row * 8 + col];
+          int32_t value = temperatures[row * 8U + col];
  8001f20:	f8d7 3120 	ldr.w	r3, [r7, #288]	@ 0x120
  8001f24:	00da      	lsls	r2, r3, #3
  8001f26:	f8d7 311c 	ldr.w	r3, [r7, #284]	@ 0x11c
@@ -4333,12 +4334,15 @@ void StartThermalTask(void *argument)
  8001f44:	425b      	neglt	r3, r3
  8001f46:	f8c7 3114 	str.w	r3, [r7, #276]	@ 0x114
 
-          used += (size_t)snprintf( message + used, sizeof(message) - used,
+          used += (size_t)snprintf(
  8001f4a:	f8d7 3124 	ldr.w	r3, [r7, #292]	@ 0x124
  8001f4e:	4a32      	ldr	r2, [pc, #200]	@ (8002018 <StartThermalTask+0x174>)
  8001f50:	189c      	adds	r4, r3, r2
+              message + used,
+              sizeof(message) - used,
  8001f52:	f8d7 3124 	ldr.w	r3, [r7, #292]	@ 0x124
  8001f56:	f5c3 7540 	rsb	r5, r3, #768	@ 0x300
+          used += (size_t)snprintf(
  8001f5a:	f8d7 3118 	ldr.w	r3, [r7, #280]	@ 0x118
  8001f5e:	2b00      	cmp	r3, #0
  8001f60:	da01      	bge.n	8001f66 <StartThermalTask+0xc2>
@@ -4372,24 +4376,27 @@ void StartThermalTask(void *argument)
  8001fa4:	f8d7 3124 	ldr.w	r3, [r7, #292]	@ 0x124
  8001fa8:	4413      	add	r3, r2
  8001faa:	f8c7 3124 	str.w	r3, [r7, #292]	@ 0x124
-        for(uint32_t col = 0; col < 8; ++col){
+        for (uint32_t col = 0; col < 8U; ++col) {
  8001fae:	f8d7 311c 	ldr.w	r3, [r7, #284]	@ 0x11c
  8001fb2:	3301      	adds	r3, #1
  8001fb4:	f8c7 311c 	str.w	r3, [r7, #284]	@ 0x11c
  8001fb8:	f8d7 311c 	ldr.w	r3, [r7, #284]	@ 0x11c
  8001fbc:	2b07      	cmp	r3, #7
  8001fbe:	d9af      	bls.n	8001f20 <StartThermalTask+0x7c>
-            "%s%ld.%02ld ", value < 0 ? "-" : "",
-            (long)(magnitude / 100), (long)(magnitude % 100));
-
+              value < 0 ? "-" : "",
+              (long)(magnitude / 100),
+              (long)(magnitude % 100));
         }
 
-        used += (size_t)snprintf(message + used, sizeof(message) - used, "\r\n");
+        used += (size_t)snprintf(
  8001fc0:	f8d7 3124 	ldr.w	r3, [r7, #292]	@ 0x124
  8001fc4:	4a14      	ldr	r2, [pc, #80]	@ (8002018 <StartThermalTask+0x174>)
  8001fc6:	1898      	adds	r0, r3, r2
+            message + used,
+            sizeof(message) - used,
  8001fc8:	f8d7 3124 	ldr.w	r3, [r7, #292]	@ 0x124
  8001fcc:	f5c3 7340 	rsb	r3, r3, #768	@ 0x300
+        used += (size_t)snprintf(
  8001fd0:	4a16      	ldr	r2, [pc, #88]	@ (800202c <StartThermalTask+0x188>)
  8001fd2:	4619      	mov	r1, r3
  8001fd4:	f00f f8f6 	bl	80111c4 <sniprintf>
@@ -4398,13 +4405,14 @@ void StartThermalTask(void *argument)
  8001fdc:	f8d7 3124 	ldr.w	r3, [r7, #292]	@ 0x124
  8001fe0:	4413      	add	r3, r2
  8001fe2:	f8c7 3124 	str.w	r3, [r7, #292]	@ 0x124
-      for(uint32_t row = 0; row < 8; ++row){
+      for (uint32_t row = 0; row < 8U; ++row) {
  8001fe6:	f8d7 3120 	ldr.w	r3, [r7, #288]	@ 0x120
  8001fea:	3301      	adds	r3, #1
  8001fec:	f8c7 3120 	str.w	r3, [r7, #288]	@ 0x120
  8001ff0:	f8d7 3120 	ldr.w	r3, [r7, #288]	@ 0x120
  8001ff4:	2b07      	cmp	r3, #7
  8001ff6:	d98f      	bls.n	8001f18 <StartThermalTask+0x74>
+            "\r\n");
       }
 
       UART_Print(message);
@@ -4412,20 +4420,20 @@ void StartThermalTask(void *argument)
  8001ffa:	f7ff f8e9 	bl	80011d0 <UART_Print>
     }
 
-    osDelay(1000);
+    osDelay(1000U);
  8001ffe:	f44f 707a 	mov.w	r0, #1000	@ 0x3e8
  8002002:	f00b f9c7 	bl	800d394 <osDelay>
-    if(AMG88XX_ReadPixels(&thermal, temperatures) == HAL_OK){
+    if (AMG88XX_ReadPixels(&thermal, temperatures) == HAL_OK) {
  8002006:	e76f      	b.n	8001ee8 <StartThermalTask+0x44>
  8002008:	2400009c 	.word	0x2400009c
  800200c:	2400040c 	.word	0x2400040c
  8002010:	08011d98 	.word	0x08011d98
- 8002014:	08011dbc 	.word	0x08011dbc
+ 8002014:	08011db8 	.word	0x08011db8
  8002018:	24000600 	.word	0x24000600
- 800201c:	08011dd4 	.word	0x08011dd4
- 8002020:	08011db8 	.word	0x08011db8
+ 800201c:	08011dd0 	.word	0x08011dd0
+ 8002020:	08011de0 	.word	0x08011de0
  8002024:	51eb851f 	.word	0x51eb851f
- 8002028:	08011dd8 	.word	0x08011dd8
+ 8002028:	08011dd4 	.word	0x08011dd4
  800202c:	08011d74 	.word	0x08011d74
 
 08002030 <HAL_TIM_PeriodElapsedCallback>:
@@ -6107,7 +6115,7 @@ HAL_StatusTypeDef VL6180X_Init(const VL6180X_t *sensor){
  8002a02:	46bd      	mov	sp, r7
  8002a04:	bd80      	pop	{r7, pc}
  8002a06:	bf00      	nop
- 8002a08:	08011f3c 	.word	0x08011f3c
+ 8002a08:	08011f38 	.word	0x08011f38
 
 08002a0c <VL6180X_ReadRange>:
 
@@ -6351,7 +6359,7 @@ LoopForever:
   ldr r1, =_edata
  8002b3c:	24000064 	.word	0x24000064
   ldr r2, =_sidata
- 8002b40:	08012048 	.word	0x08012048
+ 8002b40:	08012044 	.word	0x08012044
   ldr r2, =_sbss
  8002b44:	24000080 	.word	0x24000080
   ldr r4, =_ebss
@@ -12613,7 +12621,7 @@ static uint32_t DMA_CalcBaseAndBitshift(DMA_HandleTypeDef *hdma)
  8005748:	400204a0 	.word	0x400204a0
  800574c:	400204b8 	.word	0x400204b8
  8005750:	aaaaaaab 	.word	0xaaaaaaab
- 8005754:	08011fd0 	.word	0x08011fd0
+ 8005754:	08011fcc 	.word	0x08011fcc
  8005758:	fffffc00 	.word	0xfffffc00
 
 0800575c <DMA_CheckFifoParam>:
@@ -29308,7 +29316,7 @@ HAL_StatusTypeDef UART_SetConfig(UART_HandleTypeDef *huart)
  800c1ba:	e0b5      	b.n	800c328 <UART_SetConfig+0xa94>
  800c1bc:	03d09000 	.word	0x03d09000
  800c1c0:	003d0900 	.word	0x003d0900
- 800c1c4:	08011fd8 	.word	0x08011fd8
+ 800c1c4:	08011fd4 	.word	0x08011fd4
  800c1c8:	58024400 	.word	0x58024400
       }
     }
@@ -29524,7 +29532,7 @@ HAL_StatusTypeDef UART_SetConfig(UART_HandleTypeDef *huart)
  800c354:	58024400 	.word	0x58024400
  800c358:	03d09000 	.word	0x03d09000
  800c35c:	003d0900 	.word	0x003d0900
- 800c360:	08011fd8 	.word	0x08011fd8
+ 800c360:	08011fd4 	.word	0x08011fd4
 
 0800c364 <UART_AdvFeatureConfig>:
   * @brief Configure the UART peripheral advanced features.
@@ -31808,8 +31816,8 @@ static void UARTEx_SetNbDataToProcess(UART_HandleTypeDef *huart)
  800d0dc:	f85d 7b04 	ldr.w	r7, [sp], #4
  800d0e0:	4770      	bx	lr
  800d0e2:	bf00      	nop
- 800d0e4:	08011ff0 	.word	0x08011ff0
- 800d0e8:	08011ff8 	.word	0x08011ff8
+ 800d0e4:	08011fec 	.word	0x08011fec
+ 800d0e8:	08011ff4 	.word	0x08011ff4
 
 0800d0ec <__NVIC_SetPriority>:
 {
@@ -40151,7 +40159,7 @@ void vTaskStartScheduler( void )
  800fc84:	24005200 	.word	0x24005200
  800fc88:	240051ec 	.word	0x240051ec
  800fc8c:	240051e4 	.word	0x240051e4
- 800fc90:	08012000 	.word	0x08012000
+ 800fc90:	08011ffc 	.word	0x08011ffc
 
 0800fc94 <vTaskSuspendAll>:
     vPortEndScheduler();
@@ -44021,10 +44029,10 @@ static void prvAddCurrentTaskToDelayedList( TickType_t xTicksToWait,
  801127e:	4798      	blx	r3
  8011280:	3601      	adds	r6, #1
  8011282:	e7f2      	b.n	801126a <__libc_init_array+0x1e>
- 8011284:	08012040 	.word	0x08012040
- 8011288:	08012040 	.word	0x08012040
- 801128c:	08012040 	.word	0x08012040
- 8011290:	08012044 	.word	0x08012044
+ 8011284:	0801203c 	.word	0x0801203c
+ 8011288:	0801203c 	.word	0x0801203c
+ 801128c:	0801203c 	.word	0x0801203c
+ 8011290:	08012040 	.word	0x08012040
 
 08011294 <__retarget_lock_acquire_recursive>:
  8011294:	4770      	bx	lr
@@ -44476,11 +44484,11 @@ static void prvAddCurrentTaskToDelayedList( TickType_t xTicksToWait,
  8011698:	f000 f91c 	bl	80118d4 <_printf_i>
  801169c:	e7ee      	b.n	801167c <_svfiprintf_r+0x1b8>
  801169e:	bf00      	nop
- 80116a0:	08012004 	.word	0x08012004
- 80116a4:	0801200e 	.word	0x0801200e
+ 80116a0:	08012000 	.word	0x08012000
+ 80116a4:	0801200a 	.word	0x0801200a
  80116a8:	00000000 	.word	0x00000000
  80116ac:	08011405 	.word	0x08011405
- 80116b0:	0801200a 	.word	0x0801200a
+ 80116b0:	08012006 	.word	0x08012006
 
 080116b4 <sbrk_aligned>:
  80116b4:	b570      	push	{r4, r5, r6, lr}
@@ -44954,8 +44962,8 @@ static void prvAddCurrentTaskToDelayedList( TickType_t xTicksToWait,
  8011b10:	f104 0619 	add.w	r6, r4, #25
  8011b14:	e7f5      	b.n	8011b02 <_printf_i+0x22e>
  8011b16:	bf00      	nop
- 8011b18:	08012015 	.word	0x08012015
- 8011b1c:	08012026 	.word	0x08012026
+ 8011b18:	08012011 	.word	0x08012011
+ 8011b1c:	08012022 	.word	0x08012022
 
 08011b20 <__malloc_lock>:
  8011b20:	4801      	ldr	r0, [pc, #4]	@ (8011b28 <__malloc_lock+0x8>)

@@ -1086,33 +1086,40 @@ void StartThermalTask(void *argument)
   int32_t temperatures[AMG88XX_PIXEL_COUNT];
   static char message[768];
 
-  while(AMG88XX_Init(&thermal) != HAL_OK){
-    UART_Print("AMG8831: no se pudo iniciar C:\r\n");
-    osDelay(1000);
+  while (AMG88XX_Init(&thermal) != HAL_OK) {
+    UART_Print("AMG8831: no se pudo iniciar\r\n");
+    osDelay(1000U);
   }
 
-  for(;;){
-    if(AMG88XX_ReadPixels(&thermal, temperatures) == HAL_OK){
-      size_t used = (size_t)snprintf(message, sizeof(message), "AMG8831 - grados C:\r\n");
+  for (;;) {
+    if (AMG88XX_ReadPixels(&thermal, temperatures) == HAL_OK) {
+      size_t used = (size_t)snprintf(
+          message, sizeof(message), "AMG8831 - grados C:\r\n");
 
-      for(uint32_t row = 0; row < 8; ++row){
-        for(uint32_t col = 0; col < 8; ++col){
-          int32_t value = temperatures[row * 8 + col];
+      for (uint32_t row = 0; row < 8U; ++row) {
+        for (uint32_t col = 0; col < 8U; ++col) {
+          int32_t value = temperatures[row * 8U + col];
           int32_t magnitude = value < 0 ? -value : value;
 
-          used += (size_t)snprintf( message + used, sizeof(message) - used,
-            "%s%ld.%02ld ", value < 0 ? "-" : "",
-            (long)(magnitude / 100), (long)(magnitude % 100));
-
+          used += (size_t)snprintf(
+              message + used,
+              sizeof(message) - used,
+              "%s%ld.%02ld ",
+              value < 0 ? "-" : "",
+              (long)(magnitude / 100),
+              (long)(magnitude % 100));
         }
 
-        used += (size_t)snprintf(message + used, sizeof(message) - used, "\r\n");
+        used += (size_t)snprintf(
+            message + used,
+            sizeof(message) - used,
+            "\r\n");
       }
 
       UART_Print(message);
     }
 
-    osDelay(1000);
+    osDelay(1000U);
   }
   /* USER CODE END StartThermalTask */
 }
