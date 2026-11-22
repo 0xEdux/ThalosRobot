@@ -76,13 +76,13 @@ HAL_StatusTypeDef AMG88XX_Init(const AMG88XX_t *sensor){
         uint8_t value;
         uint16_t delay_ms;
     } settings[] = {
-        {0x00, 0x00, 60},  // modo normal
-        {0x00, 0x10, 10},  // modo sleep
-        {0x00, 0x00, 60},  // salir de sleep a normal
-        {0x01, 0x3F,  5},  // recargar ajustes tras despertar
-        {0x01, 0x30,  5},  // reiniciar banderas
-        {0x02, 0x00,  5},  // Sensor a 10 cuadros por segundo
-        {0x03, 0x00, 250}  // INT desactivado; esperar 2 cuadros
+        {0x00, 0x00, 60}, // modo normal
+        {0x00, 0x10, 10}, // modo sleep
+        {0x00, 0x00, 60}, // salir de sleep a normal
+        {0x01, 0x3F,  5}, // recargar ajustes tras despertar
+        {0x01, 0x30,  5}, // reiniciar banderas
+        {0x02, 0x00,  5}, // Sensor a 10 cuadros por segundo
+        {0x03, 0x00, 250} // INT desactivado; esperar 2 cuadros
     };
 
     for(size_t i = 0; i < sizeof(settings) / sizeof(settings[0]); ++i){
