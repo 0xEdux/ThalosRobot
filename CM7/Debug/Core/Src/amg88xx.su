@@ -1,0 +1,6 @@
+../Core/Src/amg88xx.c:7:12:AMG88XX_IsValid	16	static
+../Core/Src/amg88xx.c:14:13:AMG88XX_DelayMs	24	static
+../Core/Src/amg88xx.c:19:26:AMG88XX_Write	40	static
+../Core/Src/amg88xx.c:43:26:AMG88XX_Read	48	static
+../Core/Src/amg88xx.c:69:19:AMG88XX_Init	24	static
+../Core/Src/amg88xx.c:99:19:AMG88XX_ReadPixels	160	static

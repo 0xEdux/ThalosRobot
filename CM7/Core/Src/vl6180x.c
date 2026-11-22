@@ -2,6 +2,8 @@
 #include <stddef.h>
 #include "cmsis_os2.h"
 
+extern osMutexId_t i2c1MutexHandle;
+
 static int VL6180X_IsValid(const VL6180X_t *sensor){
     return sensor != NULL && sensor->i2c != NULL &&
         sensor->address_7bit >= 0x08U &&
@@ -15,10 +17,17 @@ static HAL_StatusTypeDef VL6180X_Read(
 ){
     if(!VL6180X_IsValid(sensor) || value == NULL) return HAL_ERROR;
 
-    return HAL_I2C_Mem_Read(
+    if(osMutexAcquire(i2c1MutexHandle, osWaitForever) != osOK){
+        return HAL_BUSY;
+    }
+
+    HAL_StatusTypeDef status = HAL_I2C_Mem_Read(
         sensor->i2c, (uint16_t)(sensor->address_7bit << 1),
         reg, I2C_MEMADD_SIZE_16BIT, value, 1U, 20U
     );
+
+    osMutexRelease(i2c1MutexHandle);
+    return status;
 }
 
 static HAL_StatusTypeDef VL6180X_Write(
@@ -28,10 +37,17 @@ static HAL_StatusTypeDef VL6180X_Write(
 ){
     if(!VL6180X_IsValid(sensor)) return HAL_ERROR;
 
-    return HAL_I2C_Mem_Write(
+    if(osMutexAcquire(i2c1MutexHandle, osWaitForever) != osOK){
+        return HAL_BUSY;
+    }
+
+    HAL_StatusTypeDef status = HAL_I2C_Mem_Write(
         sensor->i2c, (uint16_t)(sensor->address_7bit << 1),
         reg, I2C_MEMADD_SIZE_16BIT, &value, 1U, 20U
     );
+
+    osMutexRelease(i2c1MutexHandle);
+    return status;
 }
 
 static HAL_StatusTypeDef VL6180X_Wait(

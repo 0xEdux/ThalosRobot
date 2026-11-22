@@ -30,6 +30,7 @@
 
 #include "LD2450.h"
 #include "vl6180x.h"
+#include "amg88xx.h"
 
 /* USER CODE END Includes */
 
@@ -129,6 +130,13 @@ const osThreadAttr_t tofTask_attributes = {
   .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityAboveNormal,
 };
+/* Definitions for thermalTask */
+osThreadId_t thermalTaskHandle;
+const osThreadAttr_t thermalTask_attributes = {
+  .name = "thermalTask",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
 /* Definitions for trackingQueue */
 osMessageQueueId_t trackingQueueHandle;
 const osMessageQueueAttr_t trackingQueue_attributes = {
@@ -138,6 +146,11 @@ const osMessageQueueAttr_t trackingQueue_attributes = {
 osMutexId_t telemetryMutexHandle;
 const osMutexAttr_t telemetryMutex_attributes = {
   .name = "telemetryMutex"
+};
+/* Definitions for i2c1Mutex */
+osMutexId_t i2c1MutexHandle;
+const osMutexAttr_t i2c1Mutex_attributes = {
+  .name = "i2c1Mutex"
 };
 /* Definitions for ldRxSem1 */
 osSemaphoreId_t ldRxSem1Handle;
@@ -173,6 +186,7 @@ void StartTelemetryTask(void *argument);
 void StartProcessTracking1(void *argument);
 void StartProcessTracking2(void *argument);
 void StartTofTask(void *argument);
+void StartThermalTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -325,6 +339,9 @@ Error_Handler();
   /* creation of telemetryMutex */
   telemetryMutexHandle = osMutexNew(&telemetryMutex_attributes);
 
+  /* creation of i2c1Mutex */
+  i2c1MutexHandle = osMutexNew(&i2c1Mutex_attributes);
+
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
 
@@ -375,8 +392,14 @@ Error_Handler();
   /* creation of tofTask */
   tofTaskHandle = osThreadNew(StartTofTask, NULL, &tofTask_attributes);
 
+  /* creation of thermalTask */
+  thermalTaskHandle = osThreadNew(StartThermalTask, NULL, &thermalTask_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
+  if(i2c1MutexHandle == NULL || thermalTaskHandle == NULL){
+    Error_Handler();
+  }
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
@@ -1004,7 +1027,6 @@ void StartTofTask(void *argument)
   const uint8_t addresses[3] = {0x30U, 0x31U, 0x32U};
   const char * const name[3] = {"Centro", "Izquierdo", "Derecho"};
 
-  uint8_t ready[3] = {0};
   char message[128];
 
   // mantenemos apagados los tres antes de asignar direcciones
@@ -1041,6 +1063,58 @@ void StartTofTask(void *argument)
 
 
   /* USER CODE END StartTofTask */
+}
+
+/* USER CODE BEGIN Header_StartThermalTask */
+/**
+* @brief Function implementing the thermalTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartThermalTask */
+void StartThermalTask(void *argument)
+{
+  /* USER CODE BEGIN StartThermalTask */
+  (void)argument;
+
+  const AMG88XX_t thermal = {
+    &hi2c1,
+    i2c1MutexHandle,
+    AMG88XX_DEFAULT_ADDRESS
+  };
+
+  int32_t temperatures[AMG88XX_PIXEL_COUNT];
+  static char message[768];
+
+  while(AMG88XX_Init(&thermal) != HAL_OK){
+    UART_Print("AMG8831: no se pudo iniciar C:\r\n");
+    osDelay(1000);
+  }
+
+  for(;;){
+    if(AMG88XX_ReadPixels(&thermal, temperatures) == HAL_OK){
+      size_t used = (size_t)snprintf(message, sizeof(message), "AMG8831 - grados C:\r\n");
+
+      for(uint32_t row = 0; row < 8; ++row){
+        for(uint32_t col = 0; col < 8; ++col){
+          int32_t value = temperatures[row * 8 + col];
+          int32_t magnitude = value < 0 ? -value : value;
+
+          used += (size_t)snprintf( message + used, sizeof(message) - used,
+            "%s%ld.%02ld ", value < 0 ? "-" : "",
+            (long)(magnitude / 100), (long)(magnitude % 100));
+
+        }
+
+        used += (size_t)snprintf(message + used, sizeof(message) - used, "\r\n");
+      }
+
+      UART_Print(message);
+    }
+
+    osDelay(1000);
+  }
+  /* USER CODE END StartThermalTask */
 }
 
 /**

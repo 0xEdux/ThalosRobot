@@ -1,7 +1,7 @@
-../Core/Src/vl6180x.c:5:12:VL6180X_IsValid	5
-../Core/Src/vl6180x.c:11:26:VL6180X_Read	3
-../Core/Src/vl6180x.c:24:26:VL6180X_Write	2
-../Core/Src/vl6180x.c:37:26:VL6180X_Wait	4
-../Core/Src/vl6180x.c:60:19:VL6180X_SetAddress	4
-../Core/Src/vl6180x.c:75:19:VL6180X_Init	5
-../Core/Src/vl6180x.c:118:19:VL6180X_ReadRange	9
+../Core/Src/vl6180x.c:7:12:VL6180X_IsValid	5
+../Core/Src/vl6180x.c:13:26:VL6180X_Read	4
+../Core/Src/vl6180x.c:33:26:VL6180X_Write	3
+../Core/Src/vl6180x.c:53:26:VL6180X_Wait	4
+../Core/Src/vl6180x.c:76:19:VL6180X_SetAddress	4
+../Core/Src/vl6180x.c:91:19:VL6180X_Init	5
+../Core/Src/vl6180x.c:134:19:VL6180X_ReadRange	9

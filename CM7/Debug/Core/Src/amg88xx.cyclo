@@ -1,0 +1,6 @@
+../Core/Src/amg88xx.c:7:12:AMG88XX_IsValid	6
+../Core/Src/amg88xx.c:14:13:AMG88XX_DelayMs	1
+../Core/Src/amg88xx.c:19:26:AMG88XX_Write	3
+../Core/Src/amg88xx.c:43:26:AMG88XX_Read	5
+../Core/Src/amg88xx.c:69:19:AMG88XX_Init	4
+../Core/Src/amg88xx.c:99:19:AMG88XX_ReadPixels	5
