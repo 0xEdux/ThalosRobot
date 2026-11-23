@@ -119,7 +119,7 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim)
     PB10     ------> TIM2_CH3
     PB3 (JTDO/TRACESWO)     ------> TIM2_CH2
     */
-    GPIO_InitStruct.Pin = ENB_Pin|ENA_Pin;
+    GPIO_InitStruct.Pin = MOTORA_EN_Pin|MOTORB_EN_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

@@ -41,7 +41,8 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h \
  ../../Middlewares/Third_Party/FreeRTOS/Source/include/newlib-freertos.h \
  ../../Drivers/CMSIS/RTOS2/Include/cmsis_os2.h ../Core/Inc/LD2450.h \
- ../Core/Inc/main.h ../Core/Inc/encoder.h
+ ../Core/Inc/main.h ../Core/Inc/encoder.h ../Core/Inc/motor.h \
+ ../Core/Inc/encoder.h
 ../Core/Inc/main.h:
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h:
 ../Core/Inc/stm32h7xx_hal_conf.h:
@@ -87,4 +88,6 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../../Drivers/CMSIS/RTOS2/Include/cmsis_os2.h:
 ../Core/Inc/LD2450.h:
 ../Core/Inc/main.h:
+../Core/Inc/encoder.h:
+../Core/Inc/motor.h:
 ../Core/Inc/encoder.h:
