@@ -30,6 +30,7 @@
 #include <stdlib.h>
 
 #include "LD2450.h"
+#include "encoder.h"
 
 /* USER CODE END Includes */
 
@@ -142,6 +143,13 @@ const osThreadAttr_t fusionLD_attributes = {
   .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
+/* Definitions for motorTask */
+osThreadId_t motorTaskHandle;
+const osThreadAttr_t motorTask_attributes = {
+  .name = "motorTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityBelowNormal,
+};
 /* Definitions for trackingQueue */
 osMessageQueueId_t trackingQueueHandle;
 const osMessageQueueAttr_t trackingQueue_attributes = {
@@ -167,6 +175,11 @@ osSemaphoreId_t ldRxSem2Handle;
 const osSemaphoreAttr_t ldRxSem2_attributes = {
   .name = "ldRxSem2"
 };
+/* Definitions for humanSem */
+osSemaphoreId_t humanSemHandle;
+const osSemaphoreAttr_t humanSem_attributes = {
+  .name = "humanSem"
+};
 /* USER CODE BEGIN PV */
 
 RadarTaskCfg_t cfg1, cfg2;
@@ -190,6 +203,7 @@ void StartTelemetryTask(void *argument);
 void StartProcessTracking1(void *argument);
 void StartProcessTracking2(void *argument);
 void StartFusionLD(void *argument);
+void StartMotorTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -239,40 +253,7 @@ void RadarTask_Run(RadarTaskCfg_t *config) {
   }
 }
 
-void set_motor_dir(RobotMotors_t motor, MotorDirections_t dir) {
-	switch (dir) {
-		case MOTOR_FORWARD:
-			if(motor == MOTORA) {
-	      HAL_GPIO_WritePin(MOTOR_IN1_GPIO_Port, MOTOR_IN1_Pin, GPIO_PIN_SET);
-	      HAL_GPIO_WritePin(MOTOR_IN2_GPIO_Port, MOTOR_IN2_Pin, GPIO_PIN_RESET);
-			} else if(motor == MOTORB) {
-        HAL_GPIO_WritePin(MOTOR_IN3_GPIO_Port, MOTOR_IN3_Pin, GPIO_PIN_SET);
-	      HAL_GPIO_WritePin(MOTOR_IN4_GPIO_Port, MOTOR_IN4_Pin, GPIO_PIN_RESET);
-      }
-			break;
 
-		case MOTOR_BACKWARD:
-    	if(motor == MOTORA) {
-	      HAL_GPIO_WritePin(MOTOR_IN1_GPIO_Port, MOTOR_IN1_Pin, GPIO_PIN_RESET);
-	      HAL_GPIO_WritePin(MOTOR_IN2_GPIO_Port, MOTOR_IN2_Pin, GPIO_PIN_SET);
-			} else if(motor == MOTORB) {
-        HAL_GPIO_WritePin(MOTOR_IN3_GPIO_Port, MOTOR_IN3_Pin, GPIO_PIN_RESET);
-	      HAL_GPIO_WritePin(MOTOR_IN4_GPIO_Port, MOTOR_IN4_Pin, GPIO_PIN_SET);
-      }
-			break;
-		case MOTOR_BRAKE:
-			if(motor == MOTORA) {
-	      HAL_GPIO_WritePin(MOTOR_IN1_GPIO_Port, MOTOR_IN1_Pin, GPIO_PIN_SET);
-	      HAL_GPIO_WritePin(MOTOR_IN2_GPIO_Port, MOTOR_IN2_Pin, GPIO_PIN_SET);
-			} else if(motor == MOTORB) {
-        HAL_GPIO_WritePin(MOTOR_IN3_GPIO_Port, MOTOR_IN3_Pin, GPIO_PIN_SET);
-	      HAL_GPIO_WritePin(MOTOR_IN4_GPIO_Port, MOTOR_IN4_Pin, GPIO_PIN_SET);
-      }
-			break;
-		default:
-			break;
-	}
-}
 
 void UART_Print(const char *msg){
 	osMutexAcquire(telemetryMutexHandle, osWaitForever);
@@ -378,6 +359,9 @@ Error_Handler();
   /* creation of ldRxSem2 */
   ldRxSem2Handle = osSemaphoreNew(1, 0, &ldRxSem2_attributes);
 
+  /* creation of humanSem */
+  humanSemHandle = osSemaphoreNew(1, 0, &humanSem_attributes);
+
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
@@ -418,6 +402,9 @@ Error_Handler();
 
   /* creation of fusionLD */
   fusionLDHandle = osThreadNew(StartFusionLD, NULL, &fusionLD_attributes);
+
+  /* creation of motorTask */
+  motorTaskHandle = osThreadNew(StartMotorTask, NULL, &motorTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -843,24 +830,12 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
 void StartMotionTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
-	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
 
-    set_motor_dir(MOTORA, MOTOR_FORWARD);
-    set_motor_dir(MOTORB, MOTOR_BACKWARD);
 
   /* Infinite loop */
   for(;;)
   {
 
-	  for(int ccr = 0; ccr < 990; ccr += 5) {
-		  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, ccr);
-		  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, ccr);
-		  osDelay(100);
-	  }
-
-	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 0);
-	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, 0);
   }
   /* USER CODE END 5 */
 }
@@ -1032,6 +1007,24 @@ void StartFusionLD(void *argument)
     osMessageQueuePut(fusedQueueHandle, &out, 0, 0);
   }
   /* USER CODE END StartFusionLD */
+}
+
+/* USER CODE BEGIN Header_StartMotorTask */
+/**
+* @brief Function implementing the motorTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartMotorTask */
+void StartMotorTask(void *argument)
+{
+  /* USER CODE BEGIN StartMotorTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartMotorTask */
 }
 
 /**
