@@ -1022,6 +1022,7 @@ void StartMotorTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
+    // TODO: Inicializar motores y código de la tarea
     osDelay(1);
   }
   /* USER CODE END StartMotorTask */
