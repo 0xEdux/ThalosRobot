@@ -8,6 +8,9 @@
 #include "motor.h"
 
 
+const float RPM_TABLE[] = {80.4f, 92.7f, 101.7f, 114.4f};
+const float PWM_TABLE[] = {127.0f, 160.0f, 200.0f, 255.0f};
+
 void Motor_Init(Motor_Handler_t *m, const Motor_Config_t *cfg) {
     if (m == NULL || cfg == NULL || cfg->timer == NULL || cfg->encoder == NULL)
         return;
@@ -24,24 +27,24 @@ void Motor_Init(Motor_Handler_t *m, const Motor_Config_t *cfg) {
     m->Ki = cfg->ki;
 
     __HAL_TIM_SET_COMPARE(m->timer, m->pwm_ch, 0);
+    HAL_TIM_PWM_Start(m->timer, m->pwm_ch);
     Motor_SetDirection(m, MOTOR_BRAKE);
 }
 
-static float ffPWM (float rpm) {
+float ffPWM (float rpm) {
     // RPM table starts at 80 rpm
-    if (rpm <= RPM_TABLE[0]) return RPM_TABLE[0];
-    for (int k = 0; k < 3; k++) {
-        if(rpm <= RPM_TABLE[k + 1])
-
-        return PWM_TABLE[k] + (rpm - RPM_TABLE[k]) * (PWM_TABLE[k + 1] - PWM_TABLE[k]) / (RPM_TABLE[k + 1] - RPM_TABLE[k]);
+    if (rpm <= RPM_TABLE[0]) return PWM_TABLE[0];
+    for (int k = 0; k < TABLE_SIZE - 1; k++) {
+        if(rpm <= RPM_TABLE[k + 1]) {
+            return PWM_TABLE[k] + (rpm - RPM_TABLE[k]) * (PWM_TABLE[k + 1] - PWM_TABLE[k]) / (RPM_TABLE[k + 1] - RPM_TABLE[k]);
+        }
     }
-
-    return PWM_TABLE[0];
+    return PWM_TABLE[3];
 }
 
-static float constrainf(float value, float low, float high) {
+float constrainf(float value, float low, float high) {
     if(value < low) {
-        return value;
+        return low;
     } else if(value > high) {
         return high;
     } else {
@@ -77,7 +80,7 @@ void Motor_SetVelocity(Motor_Handler_t *motor, float rpm) {
     }
 }
 
-static void Motor_ApplyDir(Motor_Handler_t *motor) {
+void Motor_ApplyDir(Motor_Handler_t *motor) {
     if(motor == NULL) return;
 
     switch (motor->direction) {

@@ -31,14 +31,13 @@
 
 #include "LD2450.h"
 #include "encoder.h"
+#include "motor.h"
 
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
-typedef enum { MOTORA, MOTORB } RobotMotors_t;
-typedef enum { MOTOR_FORWARD, MOTOR_BACKWARD, MOTOR_BRAKE } MotorDirections_t;
 
 typedef struct {
   LD2450_Handle_t       *radar;
@@ -71,6 +70,7 @@ typedef struct {
 #define DISTANCE_T   45   // mm entre radares
 #define MAX_AGE_MS   150   // un frame más viejo se descarta
 #define GATE_MM      300   // distancia máxima para considerar el mismo blanco
+#define TS_MS         40
 
 /* DUAL_CORE_BOOT_SYNC_SEQUENCE: Define for dual core boot synchronization    */
 /*                             demonstration code based on hardware semaphore */
@@ -147,8 +147,8 @@ const osThreadAttr_t fusionLD_attributes = {
 osThreadId_t motorTaskHandle;
 const osThreadAttr_t motorTask_attributes = {
   .name = "motorTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityBelowNormal,
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for trackingQueue */
 osMessageQueueId_t trackingQueueHandle;
@@ -186,6 +186,13 @@ RadarTaskCfg_t cfg1, cfg2;
 
 LD2450_Handle_t radar1;
 LD2450_Handle_t radar2;
+
+Motor_Handler_t motorA;
+Motor_Handler_t motorB;
+
+Encoder_Handler_t encoderA;
+Encoder_Handler_t encoderB;
+
 
 /* USER CODE END PV */
 
@@ -338,6 +345,41 @@ Error_Handler();
   MX_USART2_UART_Init();
   MX_UART4_Init();
   /* USER CODE BEGIN 2 */
+
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+  DWT->LAR = 0xC5ACCE55;
+  DWT->CYCCNT = 0;
+  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+
+  Encoder_Init(&encoderA, ENCO_A_Pin, 20);
+  Encoder_Init(&encoderB, ENCO_B_Pin, 20);
+
+  Motor_Config_t motorA_conf = {
+    .encoder = &encoderA,
+    .in1_pin = MOTORA_IN1_Pin,
+    .in2_pin = MOTORA_IN2_Pin,
+    .in1_port = MOTORA_IN1_GPIO_Port,
+    .in2_port = MOTORA_IN2_GPIO_Port,
+    .kp = 1.0f,
+    .ki = 6.0f,
+    .pwm_ch = TIM_CHANNEL_2,
+    .timer = &htim2
+  };
+
+  Motor_Config_t motorB_conf = {
+    .encoder = &encoderB,
+    .in1_pin = MOTORB_IN1_Pin,
+    .in2_pin = MOTORB_IN2_Pin,
+    .in1_port = MOTORB_IN1_GPIO_Port,
+    .in2_port = MOTORB_IN2_GPIO_Port,
+    .kp = 1.0f,
+    .ki = 6.0f,
+    .pwm_ch = TIM_CHANNEL_3,
+    .timer = &htim2
+  };
+
+  Motor_Init(&motorA, &motorA_conf);
+  Motor_Init(&motorB, &motorB_conf);
 
   /* USER CODE END 2 */
 
@@ -502,7 +544,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 15;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 999;
+  htim2.Init.Period = 255;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -727,15 +769,15 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, MOTOR_IN3_Pin|MOTOR_IN1_Pin|MOTOR_IN2_Pin|MOTOR_IN4_Pin
+  HAL_GPIO_WritePin(GPIOE, MOTORA_IN1_Pin|MOTORB_IN1_Pin|MOTORB_IN2_Pin|MOTORA_IN2_Pin
                           |LD3_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LD1_Pin|LD2_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : MOTOR_IN3_Pin MOTOR_IN1_Pin MOTOR_IN2_Pin MOTOR_IN4_Pin
+  /*Configure GPIO pins : MOTORA_IN1_Pin MOTORB_IN1_Pin MOTORB_IN2_Pin MOTORA_IN2_Pin
                            LD3_Pin */
-  GPIO_InitStruct.Pin = MOTOR_IN3_Pin|MOTOR_IN1_Pin|MOTOR_IN2_Pin|MOTOR_IN4_Pin
+  GPIO_InitStruct.Pin = MOTORA_IN1_Pin|MOTORB_IN1_Pin|MOTORB_IN2_Pin|MOTORA_IN2_Pin
                           |LD3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -795,7 +837,25 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF11_ETH;
   HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : ENCO_B_Pin */
+  GPIO_InitStruct.Pin = ENCO_B_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(ENCO_B_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : ENCO_A_Pin */
+  GPIO_InitStruct.Pin = ENCO_A_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(ENCO_A_GPIO_Port, &GPIO_InitStruct);
+
   /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(ENCO_A_EXTI_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(ENCO_A_EXTI_IRQn);
+
+  HAL_NVIC_SetPriority(ENCO_B_EXTI_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(ENCO_B_EXTI_IRQn);
+
   HAL_NVIC_SetPriority(B1_EXTI_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(B1_EXTI_IRQn);
 
@@ -805,6 +865,16 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+  Encoder_OnExti(&encoderA, GPIO_Pin);
+  Encoder_OnExti(&encoderB, GPIO_Pin);
+}
+
+void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin) {
+  Encoder_OnExti(&encoderA, GPIO_Pin);
+  Encoder_OnExti(&encoderB, GPIO_Pin);
+}
 
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
@@ -830,12 +900,15 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
 void StartMotionTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
-
+  Motor_SetDirection(&motorA, MOTOR_FORWARD);
+  Motor_SetDirection(&motorB, MOTOR_FORWARD);
+  Motor_SetRef(&motorA, 100.0f);
+  Motor_SetRef(&motorB, 100.0f);
 
   /* Infinite loop */
   for(;;)
   {
-
+    osDelay(10);
   }
   /* USER CODE END 5 */
 }
@@ -899,6 +972,14 @@ void StartTelemetryTask(void *argument)
     } else if (status == osErrorTimeout) {
       UART_Print("radar sin datos\r\n");
     }
+
+    char line2[160];
+
+    snprintf(line2, sizeof(line2),
+            "RPM A: %f - RPM B: %f",
+            motorA.rpm, motorB.rpm);
+
+    UART_Print(line2);
   }
   /* USER CODE END StartTelemetryTask */
 }
@@ -1020,10 +1101,18 @@ void StartMotorTask(void *argument)
 {
   /* USER CODE BEGIN StartMotorTask */
   /* Infinite loop */
+
+  const uint32_t period = (TS_MS * osKernelGetTickFreq()) / 1000U;
+  uint32_t tick = osKernelGetTickCount();
+
   for(;;)
   {
-    // TODO: Inicializar motores y código de la tarea
-    osDelay(1);
+    tick += period;
+    osDelayUntil(tick);
+
+    uint32_t now = HAL_GetTick();
+    Motor_Step(&motorA, TS_MS / 1000.0f, now);
+    Motor_Step(&motorB, TS_MS / 1000.0f, now);
   }
   /* USER CODE END StartMotorTask */
 }

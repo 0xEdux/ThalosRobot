@@ -43,6 +43,7 @@ float Encoder_GetRPM(Encoder_Handler_t *encoder) {
     __disable_irq();
     uint8_t n = encoder->buffer_size;
     uint8_t i = encoder->buffer_idx;
+    uint32_t last_time = encoder->last_time;
 
 
     // "... & 3" -> "... % 4"
@@ -54,7 +55,7 @@ float Encoder_GetRPM(Encoder_Handler_t *encoder) {
 
     // no pulses in 150ms gap -> stop
 
-    if((DWT->CYCCNT - encoder->last_time) > (uint32_t)(SystemCoreClock * 0.15f)) {
+    if((DWT->CYCCNT - last_time) > (uint32_t)(SystemCoreClock * 0.15f)) {
         // Stop interrupts;
         prim = __get_PRIMASK();
         __disable_irq();

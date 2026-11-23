@@ -26,8 +26,11 @@
 #define RAMP      100.0f
 #define TIM_PERIOD    255.0f     /* = htim2.Init.Period */
 
-const float RPM_TABLE[] = {80.4f, 92.7f, 101.7f, 114.4f};
-const float PWM_TABLE[] = {127.0f, 160.0f, 200.0f, 255.0f};
+
+#define TABLE_SIZE 4
+
+extern const float RPM_TABLE[4];
+extern const float PWM_TABLE[4];
 
 typedef enum { 
     MOTOR_FORWARD = 0,
@@ -69,12 +72,12 @@ typedef struct {
 } Motor_Handler_t;
 
 void Motor_Init(Motor_Handler_t *m, const Motor_Config_t *cfg);
-static float ffPWM (float rpm);
-static float constrainf(float value, float low, float high);
+float ffPWM (float rpm);
+float constrainf(float value, float low, float high);
 void Motor_SetRef(Motor_Handler_t *motor, float rpm);
 void Motor_SetDirection( Motor_Handler_t *motor, Motor_Direction_t direction);
 void Motor_SetVelocity(Motor_Handler_t *motor, float rpm);
-static void Motor_ApplyDir(Motor_Handler_t *motor);
+void Motor_ApplyDir(Motor_Handler_t *motor);
 void Motor_Step(Motor_Handler_t *motor, float dt, uint32_t now_ms);
 void Motor_SetGains(Motor_Handler_t *motor, float Kp, float Ki);
 
