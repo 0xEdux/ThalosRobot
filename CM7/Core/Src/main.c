@@ -1192,9 +1192,9 @@ void StartThermalTask(void *argument)
       size_t used = (size_t)snprintf(
           message, sizeof(message), "AMG8831 - grados C:\r\n");
 
-      for (uint32_t row = 0; row < 8U; ++row) {
-        for (uint32_t col = 0; col < 8U; ++col) {
-          int32_t value = temperatures[row * 8U + col];
+      for (uint32_t row = 0; row < 8; ++row) {
+        for (uint32_t col = 0; col < 8; ++col) {
+          int32_t value = temperatures[row * 8 + col];
           int32_t magnitude = value < 0 ? -value : value;
 
           used += (size_t)snprintf(
