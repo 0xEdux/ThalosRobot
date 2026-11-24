@@ -1,0 +1,45 @@
+# ==========================================
+# STM32CubeIDE / Eclipse
+# ==========================================
+
+# Build directories
+Debug/
+Release/
+CM7/Debug/
+CM7/Release/
+CM4/Debug/
+CM4/Release/
+
+# Build artifacts
+*.o
+*.a
+*.d
+*.elf
+*.hex
+*.bin
+*.map
+*.list
+*.su
+*.cyclo
+*.srec
+*.out
+
+# Eclipse workspace metadata (not project metadata)
+.metadata/
+
+# Per-machine Eclipse settings
+.settings/language.settings.xml
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# ==========================================
+# Operating systems
+# ==========================================
+
+.DS_Store
+Thumbs.db
+Desktop.ini
