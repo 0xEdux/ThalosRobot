@@ -1,9 +1,0 @@
-<<<<<<< HEAD
-C:/Users/juanb/OneDrive/Escritorio/ThalosRobot/Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.c:180:6:SystemInit	1
-C:/Users/juanb/OneDrive/Escritorio/ThalosRobot/Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.c:335:6:SystemCoreClockUpdate	10
-C:/Users/juanb/OneDrive/Escritorio/ThalosRobot/Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.c:444:6:ExitRun0Mode	2
-=======
-/Users/edub/Desktop/escuela/quinto-sem/Embebidos/ThalosRobot/Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.c:180:6:SystemInit	1
-/Users/edub/Desktop/escuela/quinto-sem/Embebidos/ThalosRobot/Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.c:335:6:SystemCoreClockUpdate	10
-/Users/edub/Desktop/escuela/quinto-sem/Embebidos/ThalosRobot/Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.c:444:6:ExitRun0Mode	2
->>>>>>> 38dc10ddd0ad8870fd7405cab10387caa1101643

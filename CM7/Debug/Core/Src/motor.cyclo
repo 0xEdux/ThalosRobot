@@ -1,9 +1,0 @@
-../Core/Src/motor.c:14:6:Motor_Init	10
-../Core/Src/motor.c:34:7:ffPWM	4
-../Core/Src/motor.c:45:7:constrainf	3
-../Core/Src/motor.c:55:6:Motor_SetRef	3
-../Core/Src/motor.c:60:6:Motor_SetDirection	2
-../Core/Src/motor.c:66:6:Motor_SetVelocity	4
-../Core/Src/motor.c:83:6:Motor_ApplyDir	6
-../Core/Src/motor.c:107:6:Motor_Step	16
-../Core/Src/motor.c:157:6:Motor_SetGains	2
