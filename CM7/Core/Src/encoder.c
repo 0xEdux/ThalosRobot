@@ -23,8 +23,8 @@ void Encoder_OnExti(Encoder_Handler_t *encoder, uint16_t GPIO_Pin) {
     uint32_t now = DWT->CYCCNT;
 
     if(GPIO_Pin == encoder->pin) {
-        // Debounce filter 5ms
-        if(encoder->buffer_size > 0 && (now - encoder->last_time) < (SystemCoreClock / 200U)) return;
+        // Debounce filter 20ms
+        if(encoder->buffer_size > 0 && (now - encoder->last_time) < (SystemCoreClock / 50)) return;
 
         encoder->buffer[encoder->buffer_idx] = now;
 

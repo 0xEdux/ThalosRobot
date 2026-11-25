@@ -148,7 +148,7 @@ osThreadId_t motorTaskHandle;
 const osThreadAttr_t motorTask_attributes = {
   .name = "motorTask",
   .stack_size = 256 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityNormal2,
 };
 /* Definitions for trackingQueue */
 osMessageQueueId_t trackingQueueHandle;
@@ -360,9 +360,9 @@ Error_Handler();
     .in2_pin = MOTORA_IN2_Pin,
     .in1_port = MOTORA_IN1_GPIO_Port,
     .in2_port = MOTORA_IN2_GPIO_Port,
-    .kp = 1.0f,
-    .ki = 6.0f,
-    .pwm_ch = TIM_CHANNEL_2,
+	.kp = 1.107f,
+	.ki = 12.65f,
+    .pwm_ch = TIM_CHANNEL_3,
     .timer = &htim2
   };
 
@@ -372,9 +372,9 @@ Error_Handler();
     .in2_pin = MOTORB_IN2_Pin,
     .in1_port = MOTORB_IN1_GPIO_Port,
     .in2_port = MOTORB_IN2_GPIO_Port,
-    .kp = 1.0f,
-    .ki = 6.0f,
-    .pwm_ch = TIM_CHANNEL_3,
+	.kp = 1.360f,
+	.ki = 13.29f,
+    .pwm_ch = TIM_CHANNEL_2,
     .timer = &htim2
   };
 
@@ -542,11 +542,11 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 15;
+  htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 255;
+  htim2.Init.Period = 65535;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
@@ -900,10 +900,11 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
 void StartMotionTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
-  Motor_SetDirection(&motorA, MOTOR_FORWARD);
-  Motor_SetDirection(&motorB, MOTOR_FORWARD);
-  Motor_SetRef(&motorA, 100.0f);
-  Motor_SetRef(&motorB, 100.0f);
+  /* Los motores arrancan a MOTOR_DEFAULT_RPM (100) desde motorTask.
+   * Para cambiar la consigna desde aqui:
+   *   Motor_SetSetpoint(0, 95.0f);   motor A a 95 RPM
+   *   Motor_SetSetpoint(1, 0.0f);    motor B parado
+   */
 
   /* Infinite loop */
   for(;;)
@@ -976,8 +977,9 @@ void StartTelemetryTask(void *argument)
     char line2[160];
 
     snprintf(line2, sizeof(line2),
-            "RPM A: %f - RPM B: %f",
-            motorA.rpm, motorB.rpm);
+             "A: rpm=%.1f u=%.0f I=%.1f | B: rpm=%.1f u=%.0f I=%.1f\r\n",
+             motorA.rpm, motorA.u, motorA.integral,
+             motorB.rpm, motorB.u, motorB.integral);
 
     UART_Print(line2);
   }
@@ -1100,11 +1102,15 @@ void StartFusionLD(void *argument)
 void StartMotorTask(void *argument)
 {
   /* USER CODE BEGIN StartMotorTask */
-  /* Infinite loop */
+  Motor_SetDirection(&motorA, MOTOR_FORWARD);
+  Motor_SetDirection(&motorB, MOTOR_FORWARD);
+  Motor_SetSetpoint(0, MOTOR_DEFAULT_RPM);   /* 100 RPM fijo por defecto */
+  Motor_SetSetpoint(1, MOTOR_DEFAULT_RPM);
 
   const uint32_t period = (TS_MS * osKernelGetTickFreq()) / 1000U;
   uint32_t tick = osKernelGetTickCount();
 
+  /* Infinite loop */
   for(;;)
   {
     tick += period;

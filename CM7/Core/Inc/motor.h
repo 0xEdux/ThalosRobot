@@ -19,15 +19,18 @@
 #define MAX_RPM     120.0f
 
 #define MIN_PWM     20.0f
-#define MAX_PWM     240.0f  
+#define MAX_PWM     255.0f
 
 #define FF_TIME_MS  250
 
 #define RAMP      100.0f
-#define TIM_PERIOD    255.0f     /* = htim2.Init.Period */
+#define TIM_PERIOD    65535.0f     /* = htim2.Init.Period */
 
 
 #define TABLE_SIZE 4
+
+#define MOTOR_COUNT        2
+#define MOTOR_DEFAULT_RPM  100.0f
 
 extern const float RPM_TABLE[4];
 extern const float PWM_TABLE[4];
@@ -81,5 +84,6 @@ void Motor_ApplyDir(Motor_Handler_t *motor);
 void Motor_Step(Motor_Handler_t *motor, float dt, uint32_t now_ms);
 void Motor_SetGains(Motor_Handler_t *motor, float Kp, float Ki);
 
+void Motor_SetSetpoint(uint8_t id, float rpm);
 
 #endif /* INC_MOTOR_H_ */
