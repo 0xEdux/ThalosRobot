@@ -1,351 +1,211 @@
 /*
- * VL6180X.c
+ * vl6180x.c
  *
- *  Created on: 24 nov 2026
- *      Author: juanb
+ * Driver del VL6180X en modo continuo, sobre i2c_bus (HAL + CMSIS-RTOS2).
  */
 
+#include "VL6180X.h"
 
-#include "VL6180x.h"
-#include <stddef.h>
-#include "cmsis_os2.h"
+typedef struct {
+    uint16_t reg;
+    uint8_t value;
+} VL6180X_RegValue_t;
 
-// Los VL6180 usan direccion de registro de 16 bits
-//
-// Transporte por interrupciones (HAL_I2C_Mem_xxx_IT):
-//  - i2c1MutexHandle    : serializa el acceso al bus (como antes)
-//  - i2c1DoneSemHandle  : semaforo binario, cuenta inicial 0. Lo libera la ISR
-//                         (callbacks de abajo) cuando termina la transferencia.
-// Fin de medicion por interrupcion del sensor (GPIO1 -> EXTI, flanco de bajada):
-//  - sensor->ready_sem : semaforo binario por sensor (se crea en VL6180X_Create).
-//  - Si ready_sem es NULL se cae a polling del registro 0x004F.
-//
-// Requiere I2C1 event/error IRQ y el EXTI de cada GPIO1 habilitados en el NVIC,
-// con prioridad numericamente >= configMAX_SYSCALL_INTERRUPT_PRIORITY.
-// Todas las funciones (salvo VL6180X_OnInterrupt) se llaman desde una tarea.
+/* Ajustes obligatorios: AN4545 (registros privados, sin nombre publico) */
+static const VL6180X_RegValue_t an4545_mandatory[] = {
+    {0x0207, 0x01}, {0x0208, 0x01},
+    {0x0096, 0x00}, {0x0097, 0xFD},
+    {0x00E3, 0x01}, {0x00E4, 0x03},
+    {0x00E5, 0x02}, {0x00E6, 0x01},
+    {0x00E7, 0x03}, {0x00F5, 0x02},
+    {0x00D9, 0x05}, {0x00DB, 0xCE},
+    {0x00DC, 0x03}, {0x00DD, 0xF8},
+    {0x009F, 0x00}, {0x00A3, 0x3C},
+    {0x00B7, 0x00}, {0x00BB, 0x3C},
+    {0x00B2, 0x09}, {0x00CA, 0x09},
+    {0x0198, 0x01}, {0x01B0, 0x17},
+    {0x01AD, 0x00}, {0x00FF, 0x05},
+    {0x0100, 0x05}, {0x0199, 0x05},
+    {0x01A6, 0x1B}, {0x01AC, 0x3E},
+    {0x01A7, 0x1F}, {0x0030, 0x00},
+};
 
-extern osMutexId_t i2c1MutexHandle;
-extern osSemaphoreId_t i2c1DoneSemHandle;
+/* Configuracion de distancia (registros publicos) */
+static const VL6180X_RegValue_t range_config[] = {
+    {VL6180X_REG_SYSTEM_MODE_GPIO1,         VL6180X_GPIO1_MODE_INTERRUPT},
+    {VL6180X_REG_READOUT_AVG_SAMPLE_PERIOD, VL6180X_AVG_SAMPLE_PERIOD},
+    {VL6180X_REG_SYSRANGE_VHV_REPEAT_RATE,  VL6180X_VHV_REPEAT_RATE_CONT},
+    {VL6180X_REG_SYSRANGE_VHV_RECAL,        VL6180X_VHV_RECAL_ENABLE},
+    {VL6180X_REG_SYSTEM_INT_CONFIG_GPIO,    VL6180X_INT_CFG_RANGE_NEW_SAMPLE},
+};
 
-#define VL6180X_I2C_TIMEOUT_MS    20U
-#define VL6180X_ABORT_TIMEOUT_MS  5U
-#define VL6180X_READY_TIMEOUT_MS  100U
-#define VL6180X_RANGE_TIMEOUT_MS  100U
+/* ------------------------------------------------------------------ */
+/* Helpers                                                            */
+/* ------------------------------------------------------------------ */
 
-// Solo se toca con el mutex tomado; la ISR lo escribe antes de liberar el semaforo.
-static volatile uint8_t i2c1_error = 0U;
-
-/* ---------- Callbacks de la HAL (ISR) ---------- */
-
-void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c){
-    if(hi2c->Instance == I2C1) osSemaphoreRelease(i2c1DoneSemHandle);
-}
-
-void HAL_I2C_MemTxCpltCallback(I2C_HandleTypeDef *hi2c){
-    if(hi2c->Instance == I2C1) osSemaphoreRelease(i2c1DoneSemHandle);
-}
-
-void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c){
-    if(hi2c->Instance == I2C1){
-        i2c1_error = 1U;
-        osSemaphoreRelease(i2c1DoneSemHandle);
+static HAL_StatusTypeDef i2c_to_hal(I2CStatus_t status) {
+    switch(status) {
+        case I2C_OK:          return HAL_OK;
+        case I2C_ERR_TIMEOUT: return HAL_TIMEOUT;
+        case I2C_ERR_BUSY:    return HAL_BUSY;
+        default:              return HAL_ERROR;
     }
 }
 
-void HAL_I2C_AbortCpltCallback(I2C_HandleTypeDef *hi2c){
-    if(hi2c->Instance == I2C1) osSemaphoreRelease(i2c1DoneSemHandle);
+static HAL_StatusTypeDef VL6180X_Write(VL6180X_Handle_t *sensor, uint16_t reg, uint8_t value) {
+    return i2c_to_hal(I2CBus_MemWrite(sensor->bus, sensor->address, reg,
+                                      I2C_MEMADD_SIZE_16BIT, &value, 1, VL6180X_I2C_TIMEOUT_MS));
 }
 
-/* ---------- Utilidades internas ---------- */
-
-static int VL6180X_IsValid(const VL6180X_t *sensor){
-    return sensor != NULL && sensor->i2c != NULL &&
-        sensor->address_7bit >= 0x08U &&
-        sensor->address_7bit <= 0x77U;
+static HAL_StatusTypeDef VL6180X_Read(VL6180X_Handle_t *sensor, uint16_t reg, uint8_t *value) {
+    return i2c_to_hal(I2CBus_MemRead(sensor->bus, sensor->address, reg,
+                                     I2C_MEMADD_SIZE_16BIT, value, 1, VL6180X_I2C_TIMEOUT_MS));
 }
 
-// Espera el fin de una transferencia IT. Se llama con el mutex tomado.
-static HAL_StatusTypeDef VL6180X_WaitTransfer(
-    const VL6180X_t *sensor,
-    uint16_t addr
-){
-    if(osSemaphoreAcquire(i2c1DoneSemHandle, VL6180X_I2C_TIMEOUT_MS) != osOK){
-        // Timeout: abortamos y esperamos a que la HAL termine de tocar el buffer
-        if(HAL_I2C_Master_Abort_IT(sensor->i2c, addr) == HAL_OK){
-            (void)osSemaphoreAcquire(i2c1DoneSemHandle, VL6180X_ABORT_TIMEOUT_MS);
-        }
-        return HAL_TIMEOUT;
-    }
-
-    return i2c1_error ? HAL_ERROR : HAL_OK;
-}
-
-static HAL_StatusTypeDef VL6180X_Read(
-    const VL6180X_t *sensor,
-    uint16_t reg,
-    uint8_t *value
-){
-    if(!VL6180X_IsValid(sensor) || value == NULL) return HAL_ERROR;
-
-    if(osMutexAcquire(i2c1MutexHandle, osWaitForever) != osOK){
-        return HAL_BUSY;
-    }
-
-    uint16_t addr = (uint16_t)(sensor->address_7bit << 1);
-
-    // Limpia tokens viejos (por ejemplo, de un timeout anterior)
-    while(osSemaphoreAcquire(i2c1DoneSemHandle, 0U) == osOK){}
-    i2c1_error = 0U;
-
-    HAL_StatusTypeDef status = HAL_I2C_Mem_Read_IT(
-        sensor->i2c, addr, reg, I2C_MEMADD_SIZE_16BIT, value, 1U
-    );
-
-    if(status == HAL_OK){
-        status = VL6180X_WaitTransfer(sensor, addr);
-    }
-
-    osMutexRelease(i2c1MutexHandle);
-    return status;
-}
-
-static HAL_StatusTypeDef VL6180X_Write(
-    const VL6180X_t *sensor,
-    uint16_t reg,
-    uint8_t value
-){
-    if(!VL6180X_IsValid(sensor)) return HAL_ERROR;
-
-    if(osMutexAcquire(i2c1MutexHandle, osWaitForever) != osOK){
-        return HAL_BUSY;
-    }
-
-    uint16_t addr = (uint16_t)(sensor->address_7bit << 1);
-
-    while(osSemaphoreAcquire(i2c1DoneSemHandle, 0U) == osOK){}
-    i2c1_error = 0U;
-
-    // &value es local: por eso NO se sale de la funcion hasta que termina la transferencia
-    HAL_StatusTypeDef status = HAL_I2C_Mem_Write_IT(
-        sensor->i2c, addr, reg, I2C_MEMADD_SIZE_16BIT, &value, 1U
-    );
-
-    if(status == HAL_OK){
-        status = VL6180X_WaitTransfer(sensor, addr);
-    }
-
-    osMutexRelease(i2c1MutexHandle);
-    return status;
-}
-
-// Espera a que (reg & mask) == expected. Entre lecturas la tarea duerme.
-static HAL_StatusTypeDef VL6180X_Wait(
-    const VL6180X_t *sensor,
-    uint16_t reg,
-    uint8_t mask,
-    uint8_t expected,
-    uint32_t timeout_ms
-){
-    uint32_t start = HAL_GetTick();
-
-    for(;;){
-        uint8_t value = 0;
-        HAL_StatusTypeDef status = VL6180X_Read(sensor, reg, &value);
-
-        if(status != HAL_OK) return status;
-        if((value & mask) == expected) return HAL_OK;
-
-        if((uint32_t)(HAL_GetTick() - start) >= timeout_ms){
-            return HAL_TIMEOUT;
-        }
-
-        osDelay(1U);
-    }
-}
-
-/* ---------- API publica ---------- */
-
-HAL_StatusTypeDef VL6180X_Create(
-    VL6180X_t *sensor,
-    I2C_HandleTypeDef *i2c,
-    uint8_t address_7bit
-){
-    if(sensor == NULL || i2c == NULL) return HAL_ERROR;
-    if(address_7bit < 0x08U || address_7bit > 0x77U) return HAL_ERROR;
-
-    sensor->i2c = i2c;
-    sensor->address_7bit = address_7bit;
-    sensor->ready_sem = osSemaphoreNew(1U, 0U, NULL);
-
-    return (sensor->ready_sem != NULL) ? HAL_OK : HAL_ERROR;
-}
-
-// ISR-safe: llamar desde HAL_GPIO_EXTI_Falling_Callback
-void VL6180X_OnInterrupt(const VL6180X_t *sensor){
-    if(sensor != NULL && sensor->ready_sem != NULL){
-        osSemaphoreRelease(sensor->ready_sem);
-    }
-}
-
-HAL_StatusTypeDef VL6180X_SetAddress(
-    VL6180X_t *sensor, 
-    uint8_t new_address_7bit
-){
-    if(new_address_7bit < 0x08U || new_address_7bit > 0x77U){
-        return HAL_ERROR;
-    }
-
-    HAL_StatusTypeDef status = VL6180X_Write(sensor, 0x0212U, new_address_7bit);
-
-    if(status == HAL_OK) sensor->address_7bit = new_address_7bit;
-
-    return status;
-}
-
-HAL_StatusTypeDef VL6180X_Init(const VL6180X_t *sensor){
-    uint8_t id = 0;
-    HAL_StatusTypeDef status = VL6180X_Read(sensor, 0x0000U, &id);
-
-    if(status != HAL_OK) return status;
-    if(id != 0xB4U) return HAL_ERROR;
-
-    static const struct {
-        uint16_t reg;
-        uint8_t values;
-    } settings[] = {
-        // Ajustes obligatorios: AN4545 
-        {0x0207, 0x01}, {0x0208, 0x01},
-        {0x0096, 0x00}, {0x0097, 0xFD},
-        {0x00E3, 0x01}, {0x00E4, 0x03},
-        {0x00E5, 0x02}, {0x00E6, 0x01},
-        {0x00E7, 0x03}, {0x00F5, 0x02},
-        {0x00D9, 0x05}, {0x00DB, 0xCE},
-        {0x00DC, 0x03}, {0x00DD, 0xF8},
-        {0x009F, 0x00}, {0x00A3, 0x3C},
-        {0x00B7, 0x00}, {0x00BB, 0x3C},
-        {0x00B2, 0x09}, {0x00CA, 0x09},
-        {0x0198, 0x01}, {0x01B0, 0x17},
-        {0x01AD, 0x00}, {0x00FF, 0x05},
-        {0x0100, 0x05}, {0x0199, 0x05},
-        {0x01A6, 0x1B}, {0x01AC, 0x3E},
-        {0x01A7, 0x1F}, {0x0030, 0x00},
-
-        // Configuracion de distancia. 
-        {0x0011, 0x10}, {0x010A, 0x30},
-        {0x0031, 0xFF}, {0x002E, 0x01},
-        {0x0014, 0x04}, {0x0015, 0x07},
-        {0x0016, 0x00}
-    };
-
-    for(size_t i = 0; i < sizeof(settings) / sizeof(settings[0]); ++i){
-        status = VL6180X_Write(sensor, settings[i].reg, settings[i].values);
+static HAL_StatusTypeDef VL6180X_WriteTable(VL6180X_Handle_t *sensor, const VL6180X_RegValue_t *table, size_t count) {
+    for(size_t i = 0; i < count; ++i) {
+        HAL_StatusTypeDef status = VL6180X_Write(sensor, table[i].reg, table[i].value);
         if(status != HAL_OK) return status;
     }
+    return HAL_OK;
+}
+
+/* ------------------------------------------------------------------ */
+/* API                                                                */
+/* ------------------------------------------------------------------ */
+
+HAL_StatusTypeDef VL6180X_Init(VL6180X_Handle_t *sensor, I2CBus_t *bus, osSemaphoreId_t ready_sem,
+                               uint16_t exti_pin, GPIO_TypeDef *ce_port, uint16_t ce_pin) {
+    if(sensor == NULL || bus == NULL || ready_sem == NULL || ce_port == NULL) return HAL_ERROR;
+
+    sensor->bus = bus;
+    sensor->address = VL6180X_DEFAULT_ADDR;
+    sensor->ready_sem = ready_sem;
+    sensor->exti_pin = exti_pin;
+    sensor->ce_port = ce_port;
+    sensor->ce_pin = ce_pin;
+    sensor->period_ms = 0;
+    sensor->isSensor_start = 0;
+
+    /* Sensor apagado: asi, despues de Init de todos, solo se despierta uno a la vez en Start */
+    HAL_GPIO_WritePin(sensor->ce_port, sensor->ce_pin, GPIO_PIN_RESET);
 
     return HAL_OK;
 }
 
-// Paso 1: espera que el sensor este listo, limpia interrupciones y dispara una medicion.
-HAL_StatusTypeDef VL6180X_StartRange(const VL6180X_t *sensor){
-    HAL_StatusTypeDef status = VL6180X_Wait(
-        sensor, 0x004DU, 0x01U, 0x01U, VL6180X_READY_TIMEOUT_MS
-    );
-    if(status != HAL_OK) return status;
-
-    status = VL6180X_Write(sensor, 0x0015U, 0x07U);   // limpia interrupciones (GPIO1 vuelve a alto)
-    if(status != HAL_OK) return status;
-
-    // Descarta un flanco viejo antes de disparar
-    if(sensor->ready_sem != NULL){
-        while(osSemaphoreAcquire(sensor->ready_sem, 0U) == osOK){}
-    }
-
-    return VL6180X_Write(sensor, 0x0018U, 0x01U);     // inicia medicion individual
-}
-
-// Paso 2: espera a que la muestra este lista (interrupcion de GPIO1; polling si no hay semaforo).
-HAL_StatusTypeDef VL6180X_WaitRangeReady(const VL6180X_t *sensor){
+HAL_StatusTypeDef VL6180X_SetAddress(VL6180X_Handle_t *sensor, uint8_t new_address) {
     if(sensor == NULL) return HAL_ERROR;
+    if(new_address < VL6180X_ADDR_MIN || new_address > VL6180X_ADDR_MAX) return HAL_ERROR;
 
-    if(sensor->ready_sem != NULL){
-        return (osSemaphoreAcquire(sensor->ready_sem, VL6180X_RANGE_TIMEOUT_MS) == osOK)
-            ? HAL_OK : HAL_TIMEOUT;
+    /* Despierta solo este sensor; el resto sigue con CE en bajo desde Init */
+    HAL_GPIO_WritePin(sensor->ce_port, sensor->ce_pin, GPIO_PIN_SET);
+    osDelay(VL6180X_BOOT_DELAY_MS);
+
+    /* Tras el reset responde en la direccion por defecto */
+    sensor->address = VL6180X_DEFAULT_ADDR;
+
+    if(new_address != VL6180X_DEFAULT_ADDR) {
+        HAL_StatusTypeDef status = VL6180X_Write(sensor, VL6180X_REG_I2C_SLAVE_DEVICE_ADDRESS,
+                                                 new_address & VL6180X_ADDR_MASK);
+        if(status != HAL_OK) return status;
     }
 
-    return VL6180X_Wait(sensor, 0x004FU, 0xC7U, 0x04U, VL6180X_RANGE_TIMEOUT_MS);
+    /* Desde aqui el sensor responde en la nueva direccion. CE se queda en alto */
+    sensor->address = new_address;
+
+    return HAL_OK;
 }
 
-// Paso 3: lee estado y distancia.
-HAL_StatusTypeDef VL6180X_CollectRange(
-    const VL6180X_t *sensor,
-    VL6180X_Range_t *result
-){
-    if(result == NULL) return HAL_ERROR;
+HAL_StatusTypeDef VL6180X_Start(VL6180X_Handle_t *sensor, uint8_t address, uint16_t period_ms) {
+    if(sensor == NULL) return HAL_ERROR;
+    if(period_ms < VL6180X_PERIOD_MIN_MS || period_ms > VL6180X_PERIOD_MAX_MS) return HAL_ERROR;
 
-    result->distance_mm = 0xFFFFU;
-    result->range_status = 0xFFU;
+    HAL_StatusTypeDef status = VL6180X_SetAddress(sensor, address);
+    if(status != HAL_OK) return status;
+
+    /* Verifica que hay un VL6180X en la nueva direccion */
+    uint8_t id = 0;
+    status = VL6180X_Read(sensor, VL6180X_REG_MODEL_ID, &id);
+    if(status != HAL_OK) return status;
+    if(id != VL6180X_MODEL_ID_EXPECTED) return HAL_ERROR;
+
+    /* AN4545: los ajustes obligatorios solo se aplican si el sensor viene de reset */
+    uint8_t fresh = 0;
+    status = VL6180X_Read(sensor, VL6180X_REG_SYSTEM_FRESH_OUT_OF_RESET, &fresh);
+    if(status != HAL_OK) return status;
+
+    if(fresh == VL6180X_FRESH_OUT_OF_RESET) {
+        status = VL6180X_WriteTable(sensor, an4545_mandatory,
+                                    sizeof(an4545_mandatory) / sizeof(an4545_mandatory[0]));
+        if(status != HAL_OK) return status;
+    }
+
+    status = VL6180X_WriteTable(sensor, range_config, sizeof(range_config) / sizeof(range_config[0]));
+    if(status != HAL_OK) return status;
+
+    /* Periodo entre mediciones: (valor + 1) * 10 ms */
+    status = VL6180X_Write(sensor, VL6180X_REG_SYSRANGE_INTERMEAS_PERIOD,
+                           (uint8_t)((period_ms / 10U) - 1U));
+    if(status != HAL_OK) return status;
+
+    status = VL6180X_Write(sensor, VL6180X_REG_SYSTEM_INT_CLEAR, VL6180X_INT_CLEAR_ALL);
+    if(status != HAL_OK) return status;
+
+    status = VL6180X_Write(sensor, VL6180X_REG_SYSTEM_FRESH_OUT_OF_RESET, VL6180X_CLEAR_FRESH_FLAG);
+    if(status != HAL_OK) return status;
+
+    /* Descarta cualquier aviso viejo antes de arrancar */
+    while(osSemaphoreAcquire(sensor->ready_sem, 0) == osOK) { }
+
+    status = VL6180X_Write(sensor, VL6180X_REG_SYSRANGE_START, VL6180X_START_CONTINUOUS);
+    if(status != HAL_OK) return status;
+
+    sensor->period_ms = period_ms;
+    sensor->isSensor_start = 1;
+
+    return HAL_OK;
+}
+
+HAL_StatusTypeDef VL6180X_ReadDistance(VL6180X_Handle_t *sensor, VL6180X_Range_t *result) {
+    if(sensor == NULL || result == NULL) return HAL_ERROR;
+    if(!sensor->isSensor_start) return HAL_ERROR;
+
+    result->distance_mm = VL6180X_DISTANCE_INVALID;
+    result->range_status = VL6180X_DATA_EMPTY;
+    result->error_code = 0;
+
+    /* Bloquea solo esta tarea hasta el EXTI de GPIO1 (muestra nueva) */
+    if(osSemaphoreAcquire(sensor->ready_sem, sensor->period_ms + VL6180X_SAMPLE_MARGIN_MS) != osOK) {
+        return HAL_TIMEOUT;
+    }
 
     uint8_t raw_status = 0;
     uint8_t distance = 0;
 
-    HAL_StatusTypeDef status = VL6180X_Read(sensor, 0x004DU, &raw_status);
+    HAL_StatusTypeDef status = VL6180X_Read(sensor, VL6180X_REG_RESULT_RANGE_STATUS, &raw_status);
+    if(status == HAL_OK) {
+        status = VL6180X_Read(sensor, VL6180X_REG_RESULT_RANGE_VAL, &distance);
+    }
+
+    /* Limpiar siempre: si no, GPIO1 se queda asertado y no vuelve a haber flanco */
+    HAL_StatusTypeDef clear_status = VL6180X_Write(sensor, VL6180X_REG_SYSTEM_INT_CLEAR, VL6180X_INT_CLEAR_ALL);
+
     if(status != HAL_OK) return status;
+    if(clear_status != HAL_OK) return clear_status;
 
-    status = VL6180X_Read(sensor, 0x0062U, &distance);
-    if(status != HAL_OK) return status;
+    result->error_code = (uint8_t)((raw_status >> VL6180X_RANGE_ERR_SHIFT) & VL6180X_RANGE_ERR_MASK);
 
-    result->range_status = (uint8_t)((raw_status >> 4) & 0x0FU);
-
-    if(result->range_status == 0U){
+    if(result->error_code == VL6180X_RANGE_ERR_NONE) {
         result->distance_mm = distance;
+        result->range_status = VL6180X_DATA_OK;
     }
 
     return HAL_OK;
 }
 
-// Version de un solo sensor (misma firma que antes).
-HAL_StatusTypeDef VL6180X_ReadRange(
-    const VL6180X_t *sensor,
-    VL6180X_Range_t *result
-){
-    if(result == NULL) return HAL_ERROR;
+void VL6180X_OnExtiCb(VL6180X_Handle_t *sensor, uint16_t GPIO_PIN) {
+    if(sensor == NULL || sensor->ready_sem == NULL) return;
+    if(GPIO_PIN != sensor->exti_pin) return;
 
-    result->distance_mm = 0xFFFFU;
-    result->range_status = 0xFFU;
-
-    HAL_StatusTypeDef status = VL6180X_StartRange(sensor);
-    if(status != HAL_OK) return status;
-
-    status = VL6180X_WaitRangeReady(sensor);
-    if(status != HAL_OK) return status;
-
-    return VL6180X_CollectRange(sensor, result);
-}
-
-// Version para varios sensores: dispara todos y luego espera/recoge.
-// El tiempo total es ~ una medicion en lugar de n.
-// results[i] queda con 0xFFFF/0xFF si ese sensor falla; status[i] guarda su codigo.
-HAL_StatusTypeDef VL6180X_ReadRangeMulti(
-    const VL6180X_t *const sensors[],
-    VL6180X_Range_t results[],
-    HAL_StatusTypeDef statuses[],
-    size_t count
-){
-    if(sensors == NULL || results == NULL || statuses == NULL) return HAL_ERROR;
-
-    HAL_StatusTypeDef overall = HAL_OK;
-
-    for(size_t i = 0; i < count; ++i){
-        results[i].distance_mm = 0xFFFFU;
-        results[i].range_status = 0xFFU;
-        statuses[i] = VL6180X_StartRange(sensors[i]);
-    }
-
-    for(size_t i = 0; i < count; ++i){
-        if(statuses[i] == HAL_OK) statuses[i] = VL6180X_WaitRangeReady(sensors[i]);
-        if(statuses[i] == HAL_OK) statuses[i] = VL6180X_CollectRange(sensors[i], &results[i]);
-        if(statuses[i] != HAL_OK) overall = statuses[i];
-    }
-
-    return overall;
+    osSemaphoreRelease(sensor->ready_sem);
 }
