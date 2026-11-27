@@ -1,8 +1,3 @@
-/*
- * vl6180x.c
- *
- * Driver del VL6180X en modo continuo, sobre i2c_bus (HAL + CMSIS-RTOS2).
- */
 
 #include "VL6180X.h"
 
@@ -11,7 +6,6 @@ typedef struct {
     uint8_t value;
 } VL6180X_RegValue_t;
 
-/* Ajustes obligatorios: AN4545 (registros privados, sin nombre publico) */
 static const VL6180X_RegValue_t an4545_mandatory[] = {
     {0x0207, 0x01}, {0x0208, 0x01},
     {0x0096, 0x00}, {0x0097, 0xFD},
@@ -30,7 +24,6 @@ static const VL6180X_RegValue_t an4545_mandatory[] = {
     {0x01A7, 0x1F}, {0x0030, 0x00},
 };
 
-/* Configuracion de distancia (registros publicos) */
 static const VL6180X_RegValue_t range_config[] = {
     {VL6180X_REG_SYSTEM_MODE_GPIO1,         VL6180X_GPIO1_MODE_INTERRUPT},
     {VL6180X_REG_READOUT_AVG_SAMPLE_PERIOD, VL6180X_AVG_SAMPLE_PERIOD},
@@ -39,9 +32,7 @@ static const VL6180X_RegValue_t range_config[] = {
     {VL6180X_REG_SYSTEM_INT_CONFIG_GPIO,    VL6180X_INT_CFG_RANGE_NEW_SAMPLE},
 };
 
-/* ------------------------------------------------------------------ */
-/* Helpers                                                            */
-/* ------------------------------------------------------------------ */
+// Helpers                                                          */
 
 static HAL_StatusTypeDef i2c_to_hal(I2CStatus_t status) {
     switch(status) {
@@ -53,13 +44,11 @@ static HAL_StatusTypeDef i2c_to_hal(I2CStatus_t status) {
 }
 
 static HAL_StatusTypeDef VL6180X_Write(VL6180X_Handle_t *sensor, uint16_t reg, uint8_t value) {
-    return i2c_to_hal(I2CBus_MemWrite(sensor->bus, sensor->address, reg,
-                                      I2C_MEMADD_SIZE_16BIT, &value, 1, VL6180X_I2C_TIMEOUT_MS));
+    return i2c_to_hal(I2CBus_MemWrite(sensor->bus, sensor->address, reg, I2C_MEMADD_SIZE_16BIT, &value, 1, VL6180X_I2C_TIMEOUT_MS));
 }
 
 static HAL_StatusTypeDef VL6180X_Read(VL6180X_Handle_t *sensor, uint16_t reg, uint8_t *value) {
-    return i2c_to_hal(I2CBus_MemRead(sensor->bus, sensor->address, reg,
-                                     I2C_MEMADD_SIZE_16BIT, value, 1, VL6180X_I2C_TIMEOUT_MS));
+    return i2c_to_hal(I2CBus_MemRead(sensor->bus, sensor->address, reg, I2C_MEMADD_SIZE_16BIT, value, 1, VL6180X_I2C_TIMEOUT_MS));
 }
 
 static HAL_StatusTypeDef VL6180X_WriteTable(VL6180X_Handle_t *sensor, const VL6180X_RegValue_t *table, size_t count) {
@@ -70,12 +59,9 @@ static HAL_StatusTypeDef VL6180X_WriteTable(VL6180X_Handle_t *sensor, const VL61
     return HAL_OK;
 }
 
-/* ------------------------------------------------------------------ */
-/* API                                                                */
-/* ------------------------------------------------------------------ */
+// API
 
-HAL_StatusTypeDef VL6180X_Init(VL6180X_Handle_t *sensor, I2CBus_t *bus, osSemaphoreId_t ready_sem,
-                               uint16_t exti_pin, GPIO_TypeDef *ce_port, uint16_t ce_pin) {
+HAL_StatusTypeDef VL6180X_Init(VL6180X_Handle_t *sensor, I2CBus_t *bus, osSemaphoreId_t ready_sem, uint16_t exti_pin, GPIO_TypeDef *ce_port, uint16_t ce_pin) {
     if(sensor == NULL || bus == NULL || ready_sem == NULL || ce_port == NULL) return HAL_ERROR;
 
     sensor->bus = bus;
@@ -87,7 +73,7 @@ HAL_StatusTypeDef VL6180X_Init(VL6180X_Handle_t *sensor, I2CBus_t *bus, osSemaph
     sensor->period_ms = 0;
     sensor->isSensor_start = 0;
 
-    /* Sensor apagado: asi, despues de Init de todos, solo se despierta uno a la vez en Start */
+    // Sensor off, starts in VL6180X_Start()
     HAL_GPIO_WritePin(sensor->ce_port, sensor->ce_pin, GPIO_PIN_RESET);
 
     return HAL_OK;
@@ -97,20 +83,18 @@ HAL_StatusTypeDef VL6180X_SetAddress(VL6180X_Handle_t *sensor, uint8_t new_addre
     if(sensor == NULL) return HAL_ERROR;
     if(new_address < VL6180X_ADDR_MIN || new_address > VL6180X_ADDR_MAX) return HAL_ERROR;
 
-    /* Despierta solo este sensor; el resto sigue con CE en bajo desde Init */
+    // Wake up only this sensor
     HAL_GPIO_WritePin(sensor->ce_port, sensor->ce_pin, GPIO_PIN_SET);
     osDelay(VL6180X_BOOT_DELAY_MS);
 
-    /* Tras el reset responde en la direccion por defecto */
     sensor->address = VL6180X_DEFAULT_ADDR;
 
     if(new_address != VL6180X_DEFAULT_ADDR) {
-        HAL_StatusTypeDef status = VL6180X_Write(sensor, VL6180X_REG_I2C_SLAVE_DEVICE_ADDRESS,
-                                                 new_address & VL6180X_ADDR_MASK);
+        HAL_StatusTypeDef status = VL6180X_Write(sensor, VL6180X_REG_I2C_SLAVE_DEVICE_ADDRESS, new_address & VL6180X_ADDR_MASK);
         if(status != HAL_OK) return status;
     }
 
-    /* Desde aqui el sensor responde en la nueva direccion. CE se queda en alto */
+    // Sensor set
     sensor->address = new_address;
 
     return HAL_OK;
@@ -123,13 +107,13 @@ HAL_StatusTypeDef VL6180X_Start(VL6180X_Handle_t *sensor, uint8_t address, uint1
     HAL_StatusTypeDef status = VL6180X_SetAddress(sensor, address);
     if(status != HAL_OK) return status;
 
-    /* Verifica que hay un VL6180X en la nueva direccion */
+    // Verify ID
     uint8_t id = 0;
     status = VL6180X_Read(sensor, VL6180X_REG_MODEL_ID, &id);
     if(status != HAL_OK) return status;
     if(id != VL6180X_MODEL_ID_EXPECTED) return HAL_ERROR;
 
-    /* AN4545: los ajustes obligatorios solo se aplican si el sensor viene de reset */
+    // Re-config after reset
     uint8_t fresh = 0;
     status = VL6180X_Read(sensor, VL6180X_REG_SYSTEM_FRESH_OUT_OF_RESET, &fresh);
     if(status != HAL_OK) return status;
@@ -143,7 +127,7 @@ HAL_StatusTypeDef VL6180X_Start(VL6180X_Handle_t *sensor, uint8_t address, uint1
     status = VL6180X_WriteTable(sensor, range_config, sizeof(range_config) / sizeof(range_config[0]));
     if(status != HAL_OK) return status;
 
-    /* Periodo entre mediciones: (valor + 1) * 10 ms */
+    // Period between readings: (value + 1) * 10 ms
     status = VL6180X_Write(sensor, VL6180X_REG_SYSRANGE_INTERMEAS_PERIOD,
                            (uint8_t)((period_ms / 10U) - 1U));
     if(status != HAL_OK) return status;
@@ -154,8 +138,7 @@ HAL_StatusTypeDef VL6180X_Start(VL6180X_Handle_t *sensor, uint8_t address, uint1
     status = VL6180X_Write(sensor, VL6180X_REG_SYSTEM_FRESH_OUT_OF_RESET, VL6180X_CLEAR_FRESH_FLAG);
     if(status != HAL_OK) return status;
 
-    /* Descarta cualquier aviso viejo antes de arrancar */
-    while(osSemaphoreAcquire(sensor->ready_sem, 0) == osOK) { }
+    osSemaphoreAcquire(sensor->ready_sem, 0);
 
     status = VL6180X_Write(sensor, VL6180X_REG_SYSRANGE_START, VL6180X_START_CONTINUOUS);
     if(status != HAL_OK) return status;
@@ -174,7 +157,7 @@ HAL_StatusTypeDef VL6180X_ReadDistance(VL6180X_Handle_t *sensor, VL6180X_Range_t
     result->range_status = VL6180X_DATA_EMPTY;
     result->error_code = 0;
 
-    /* Bloquea solo esta tarea hasta el EXTI de GPIO1 (muestra nueva) */
+    // Block until exti
     if(osSemaphoreAcquire(sensor->ready_sem, sensor->period_ms + VL6180X_SAMPLE_MARGIN_MS) != osOK) {
         return HAL_TIMEOUT;
     }
@@ -187,7 +170,7 @@ HAL_StatusTypeDef VL6180X_ReadDistance(VL6180X_Handle_t *sensor, VL6180X_Range_t
         status = VL6180X_Read(sensor, VL6180X_REG_RESULT_RANGE_VAL, &distance);
     }
 
-    /* Limpiar siempre: si no, GPIO1 se queda asertado y no vuelve a haber flanco */
+    // Clean sensor interrupt
     HAL_StatusTypeDef clear_status = VL6180X_Write(sensor, VL6180X_REG_SYSTEM_INT_CLEAR, VL6180X_INT_CLEAR_ALL);
 
     if(status != HAL_OK) return status;
