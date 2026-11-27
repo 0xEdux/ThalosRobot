@@ -3,12 +3,8 @@
 # ==========================================
 
 # Build directories
-Debug/
-Release/
-CM7/Debug/
-CM7/Release/
-CM4/Debug/
-CM4/Release/
+**/Debug/
+**/Release/
 
 # Build artifacts
 *.o
@@ -24,17 +20,11 @@ CM4/Release/
 *.srec
 *.out
 
-# Eclipse workspace metadata (not project metadata)
+# Eclipse workspace metadata
 .metadata/
 
 # Per-machine Eclipse settings
-.settings/language.settings.xml
-
-# Temporary files
-*.tmp
-*.bak
-*.swp
-*~
+**/.settings/language.settings.xml
 
 # ==========================================
 # Operating systems
@@ -43,3 +33,12 @@ CM4/Release/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# ==========================================
+# Temporary files
+# ==========================================
+
+*.tmp
+*.bak
+*.swp
+*~
