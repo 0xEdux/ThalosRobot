@@ -360,9 +360,9 @@ Error_Handler();
     .in2_pin = MOTORA_IN2_Pin,
     .in1_port = MOTORA_IN1_GPIO_Port,
     .in2_port = MOTORA_IN2_GPIO_Port,
-    .kp = 1.0f,
-    .ki = 6.0f,
-    .pwm_ch = TIM_CHANNEL_2,
+    .kp = 1.107f,
+	  .ki = 12.65f,
+    .pwm_ch = TIM_CHANNEL_3,
     .timer = &htim2
   };
 
@@ -372,9 +372,9 @@ Error_Handler();
     .in2_pin = MOTORB_IN2_Pin,
     .in1_port = MOTORB_IN1_GPIO_Port,
     .in2_port = MOTORB_IN2_GPIO_Port,
-    .kp = 1.0f,
-    .ki = 6.0f,
-    .pwm_ch = TIM_CHANNEL_3,
+    .kp = 1.360f,
+	  .ki = 13.29f,
+    .pwm_ch = TIM_CHANNEL_2,
     .timer = &htim2
   };
 
@@ -976,8 +976,9 @@ void StartTelemetryTask(void *argument)
     char line2[160];
 
     snprintf(line2, sizeof(line2),
-            "RPM A: %f - RPM B: %f",
-            motorA.rpm, motorB.rpm);
+             "A: rpm=%.1f u=%.0f I=%.1f | B: rpm=%.1f u=%.0f I=%.1f\r\n",
+             motorA.rpm, motorA.u, motorA.integral,
+             motorB.rpm, motorB.u, motorB.integral);
 
     UART_Print(line2);
   }

@@ -8,8 +8,8 @@
 #include "motor.h"
 
 
-const float RPM_TABLE[] = {80.4f, 92.7f, 101.7f, 114.4f};
-const float PWM_TABLE[] = {127.0f, 160.0f, 200.0f, 255.0f};
+const float RPM_TABLE[] = {85.0f, 104.7f, 116.2f, 129.9f};
+const float PWM_TABLE[] = {80.0f, 100.0f, 120.0f, 150.0f};
 
 void Motor_Init(Motor_Handler_t *m, const Motor_Config_t *cfg) {
     if (m == NULL || cfg == NULL || cfg->timer == NULL || cfg->encoder == NULL)
@@ -137,7 +137,9 @@ void Motor_Step(Motor_Handler_t *motor, float dt, uint32_t now_ms) {
             float u_pi = ff + motor->Kp * e + motor->integral;
             uint8_t saturation = (u_pi > MAX_PWM && e > 0) || (u_pi < MIN_PWM && e < 0);
             
-            if(!saturation) motor->integral += motor->Ki * e * dt;
+            if(!saturation && motor->rpm > 0.5f * motor->speed) {
+            	motor->integral += motor->Ki * e * dt;
+            }
             
             motor->integral = constrainf(motor->integral, -60.0f, 60.0f);
             u = ff + motor->Kp * e + motor->integral;

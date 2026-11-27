@@ -29,6 +29,8 @@
 
 #define TABLE_SIZE 4
 
+#define MOTOR_DEFAULT_RPM  100.0f
+
 extern const float RPM_TABLE[4];
 extern const float PWM_TABLE[4];
 
@@ -39,8 +41,10 @@ typedef enum {
 } Motor_Direction_t;
 
 typedef struct {
-    GPIO_TypeDef *in1_port; uint16_t in1_pin;
-    GPIO_TypeDef *in2_port; uint16_t in2_pin;
+    GPIO_TypeDef *in1_port; 
+    uint16_t in1_pin;
+    GPIO_TypeDef *in2_port; 
+    uint16_t in2_pin;
     uint32_t pwm_ch;
     TIM_HandleTypeDef *timer;
     Encoder_Handler_t *encoder;
@@ -80,6 +84,5 @@ void Motor_SetVelocity(Motor_Handler_t *motor, float rpm);
 void Motor_ApplyDir(Motor_Handler_t *motor);
 void Motor_Step(Motor_Handler_t *motor, float dt, uint32_t now_ms);
 void Motor_SetGains(Motor_Handler_t *motor, float Kp, float Ki);
-
 
 #endif /* INC_MOTOR_H_ */
